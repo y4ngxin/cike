@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#FAF6F1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <title>此刻 — 看见自己，修炼自己</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div id="app" class="app-container">
+        
+        <!-- 全局极简顶栏 -->
+        <header id="global-header" class="global-header">
+            <span class="header-brand" onclick="window.CiKeRouter.navigate('home')">此刻</span>
+            <div class="header-actions">
+                <button class="header-icon-btn" onclick="window.CiKeRouter.navigate('plan')" title="图 · 计划看板">📐</button>
+                <button class="header-icon-btn" onclick="window.CiKeRouter.navigate('settings')" title="设置与数据中心">⚙️</button>
+            </div>
+        </header>
+
+        <!-- 主内容区域 -->
+        <main id="main-content">
+            <!-- 主模块页面 (展示底部导航) -->
+            <div id="page-home" class="page" style="display:none;"></div>
+            <div id="page-mirror" class="page" style="display:none;"></div>
+            <div id="page-direction" class="page" style="display:none;"></div>
+            <div id="page-skills" class="page" style="display:none;"></div>
+            <div id="page-plan" class="page" style="display:none;"></div>
+            <div id="page-focus" class="page" style="display:none;"></div>
+
+            <!-- 子页面（自动隐藏底部导航） -->
+            <div id="page-goal-detail" class="page" style="display:none;"></div>
+            <div id="page-skill-detail" class="page" style="display:none;"></div>
+            <div id="page-unit-learning" class="page" style="display:none;"></div>
+            <div id="page-morning-checkin" class="page" style="display:none;"></div>
+            <div id="page-evening-reflection" class="page" style="display:none;"></div>
+            <div id="page-new-record" class="page" style="display:none;"></div>
+            <div id="page-new-goal" class="page" style="display:none;"></div>
+            <div id="page-focus-timer" class="page" style="display:none;"></div>
+            <div id="page-settings" class="page" style="display:none;"></div>
+        </main>
+
+        <!-- 底部导航 (5 Tab 系统) -->
+        <nav id="bottom-nav" class="bottom-nav">
+            <a href="#home" class="nav-item" data-route="home">
+                <span class="nav-icon">🏠</span>
+                <span class="nav-text">此刻</span>
+            </a>
+            <a href="#mirror" class="nav-item" data-route="mirror">
+                <span class="nav-icon">🪞</span>
+                <span class="nav-text">镜</span>
+            </a>
+            <a href="#direction" class="nav-item" data-route="direction">
+                <span class="nav-icon">🧭</span>
+                <span class="nav-text">路</span>
+            </a>
+            <a href="#skills" class="nav-item" data-route="skills">
+                <span class="nav-icon">🏛️</span>
+                <span class="nav-text">修</span>
+            </a>
+            <a href="#focus" class="nav-item" data-route="focus">
+                <span class="nav-icon">🔥</span>
+                <span class="nav-text">炬</span>
+            </a>
+        </nav>
+    </div>
+
+    <!-- 1. 声音引擎与静态数据源 -->
+    <script src="js/audio.js"></script>
+    <script src="js/skills-data.js"></script>
+
+    <!-- 2. 核心架构层 -->
+    <script src="js/store.js"></script>
+    <script src="js/router.js"></script>
+
+    <!-- 3. 各业务模块页面 -->
+    <script src="js/pages/home.js"></script>
+    <script src="js/pages/morning-checkin.js"></script>
+    <script src="js/pages/evening-reflection.js"></script>
+    <script src="js/pages/mirror.js"></script>
+    <script src="js/pages/new-record.js"></script>
+    <script src="js/pages/direction.js"></script>
+    <script src="js/pages/goal-detail.js"></script>
+    <script src="js/pages/new-goal.js"></script>
+    <script src="js/pages/skills.js"></script>
+    <script src="js/pages/skill-detail.js"></script>
+    <script src="js/pages/unit-learning.js"></script>
+    <script src="js/pages/plan.js"></script>
+    <script src="js/pages/focus.js"></script>
+    <script src="js/pages/focus-timer.js"></script>
+    <script src="js/pages/settings.js"></script>
+
+    <!-- 4. 应用程序入口与 PWA 装配 -->
+    <script src="js/app.js"></script>
+</body>
+</html>
