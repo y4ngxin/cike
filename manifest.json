@@ -1,0 +1,56 @@
+{
+  "name": "此刻 (CiKe) — 个人成长操作系统",
+  "short_name": "此刻",
+  "id": "cike-app-v1",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#FAF6F1",
+  "theme_color": "#FAF6F1",
+  "orientation": "portrait",
+  "description": "看见自己，修炼自己，成为自主、自由且幸福的人。",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "./icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "./icons/icon-maskable-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "🔥 专注心流",
+      "short_name": "专注",
+      "description": "开启沉浸专注计时",
+      "url": "./index.html#focus-timer",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "🪞 记录思绪",
+      "short_name": "记录",
+      "description": "记录此刻想法或行动",
+      "url": "./index.html#new-record",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "🏛️ 五艺修炼",
+      "short_name": "修炼",
+      "description": "底层能力进阶",
+      "url": "./index.html#skills",
+      "icons": [{ "src": "./icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}

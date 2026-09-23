@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>安装「此刻」到安卓手机</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #FAF6F1;
+            color: #3D3530;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        .card {
+            background: #FFFFFF;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(61, 53, 48, 0.08);
+            max-width: 400px;
+            width: 100%;
+        }
+        h1 {
+            font-size: 24px;
+            margin: 0 0 10px 0;
+        }
+        p {
+            color: #7A7068;
+            font-size: 14px;
+            line-height: 1.6;
+            margin: 0 0 20px 0;
+        }
+        .qr-box {
+            background: #FAF6F1;
+            padding: 16px;
+            border-radius: 16px;
+            display: inline-block;
+            margin-bottom: 20px;
+        }
+        .qr-box img {
+            width: 220px;
+            height: 220px;
+            display: block;
+        }
+        .ip-link {
+            font-family: monospace;
+            background: #F4EFEB;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 15px;
+            color: #2C3E6B;
+            word-break: break-all;
+            margin-bottom: 20px;
+            display: block;
+            text-decoration: none;
+            font-weight: bold;
+        }
+        .steps {
+            text-align: left;
+            background: #FAF6F1;
+            padding: 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.8;
+            color: #4A403A;
+        }
+        .btn-enter {
+            background: #D4A574;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 25px;
+            text-decoration: none;
+            font-size: 15px;
+            font-weight: bold;
+            display: inline-block;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div style="font-size: 40px; margin-bottom: 10px;">📱</div>
+        <h1>安装「此刻」到手机</h1>
+        <p>手机与电脑连接同一 Wi-Fi，扫码即可直接安装体验</p>
+
+        <div class="qr-box">
+            <!-- 动态生成局域网访问二维码 -->
+            <img id="qr-img" src="https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=http://172.31.16.197:8080" alt="二维码" onerror="this.style.display='none'">
+        </div>
+
+        <a class="ip-link" href="http://172.31.16.197:8080" target="_blank">http://172.31.16.197:8080</a>
+
+        <div class="steps">
+            <strong>📲 安卓手机安装方法：</strong><br>
+            1. 手机连接同一 Wi-Fi，使用 Chrome / 系统浏览器扫码打开；<br>
+            2. 页面载入后，点击浏览器右上角菜单 <strong>「⋮」</strong>；<br>
+            3. 点击 <strong>「安装应用」</strong> 或 <strong>「添加到主屏幕」</strong>；<br>
+            4. 安卓系统将自动在手机桌面生成独立的 App 图标，享受全屏、断网秒开体验。
+        </div>
+
+        <a href="./index.html" class="btn-enter">在当前浏览器打开 App →</a>
+    </div>
+</body>
+</html>
