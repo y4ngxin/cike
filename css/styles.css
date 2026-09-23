@@ -1,0 +1,618 @@
+/* 设计系统定义 */
+:root {
+    /* 颜色 */
+    --color-bg: #FAF6F1;
+    --color-text: #3D3530;
+    --color-text-light: #7A7068;
+    --color-accent: #D4A574;
+    --color-focus: #2C3E6B;
+    --color-success: #5B8C6F;
+    --color-card-bg: #FFFFFF;
+    --color-border: #E8E2DB;
+
+    /* 阴影 */
+    --shadow-subtle: 0 4px 12px rgba(61, 53, 48, 0.05);
+    
+    /* 字体 */
+    --font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    
+    /* 间距 */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+
+    /* 圆角 */
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-lg: 16px;
+    --radius-round: 999px;
+}
+
+/* 基础重置 */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+}
+
+body {
+    background-color: #e5e5e5; /* Desktop background */
+    color: var(--color-text);
+    font-family: var(--font-family);
+    line-height: 1.6;
+    font-size: 16px;
+}
+
+/* 移动优先应用容器 */
+.app-container {
+    max-width: 430px;
+    margin: 0 auto;
+    background-color: var(--color-bg);
+    min-height: 100vh;
+    position: relative;
+    box-shadow: 0 0 20px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+}
+
+/* 全局极简顶栏 */
+.global-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px;
+    background-color: var(--color-bg);
+    border-bottom: 1px solid var(--color-border);
+    position: sticky;
+    top: 0;
+    z-index: 99;
+}
+
+.header-brand {
+    font-size: 18px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.header-icon-btn {
+    background: none;
+    border: none;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.header-icon-btn:hover {
+    background: rgba(0,0,0,0.05);
+}
+
+/* 页面切换过渡 */
+.page {
+    padding: var(--spacing-lg);
+    padding-bottom: 90px; /* Leave space for bottom nav */
+    animation: fadeIn 0.3s ease-in-out;
+    min-height: 100vh;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* 排版工具类 */
+h1, h2, h3 {
+    font-weight: 600;
+    line-height: 1.4;
+    margin-bottom: var(--spacing-md);
+}
+
+h1 { font-size: 28px; }
+h2 { font-size: 24px; }
+h3 { font-size: 20px; }
+
+.text-light {
+    color: var(--color-text-light);
+}
+
+/* 底部导航 */
+.bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    max-width: 430px;
+    background-color: var(--color-card-bg);
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    justify-content: space-around;
+    padding: var(--spacing-sm) 0 calc(var(--spacing-sm) + env(safe-area-inset-bottom, 0px));
+    z-index: 100;
+}
+
+.nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-decoration: none;
+    color: var(--color-text-light);
+    min-width: 44px;
+    padding: var(--spacing-xs);
+    transition: all 0.2s;
+}
+
+.nav-item.active {
+    color: var(--color-accent);
+}
+
+.nav-icon {
+    font-size: 24px;
+    margin-bottom: 2px;
+}
+
+.nav-text {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* 卡片组件 */
+.card {
+    background-color: var(--color-card-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-md);
+    box-shadow: var(--shadow-subtle);
+    margin-bottom: var(--spacing-md);
+    border: 1px solid var(--color-border);
+}
+
+/* 按钮样式 */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px var(--spacing-lg);
+    border-radius: var(--radius-round);
+    font-size: 16px;
+    font-weight: 500;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-height: 44px;
+    width: 100%;
+}
+
+.btn-primary {
+    background-color: var(--color-accent);
+    color: #FFF;
+}
+
+.btn-secondary {
+    background-color: var(--color-card-bg);
+    color: var(--color-text);
+    border: 1px solid var(--color-border);
+}
+
+.btn-icon {
+    width: 44px;
+    padding: 0;
+    border-radius: 50%;
+}
+
+/* 表单输入 */
+input[type="text"],
+textarea {
+    width: 100%;
+    padding: 12px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-card-bg);
+    color: var(--color-text);
+    font-family: inherit;
+    font-size: 16px;
+    margin-bottom: var(--spacing-md);
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+input:focus,
+textarea:focus {
+    border-color: var(--color-accent);
+}
+
+/* 情绪选择器 */
+.mood-selector {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: var(--spacing-md);
+}
+
+.mood-btn {
+    font-size: 24px;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 1px solid var(--color-border);
+    background: var(--color-card-bg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mood-btn.selected {
+    background-color: var(--color-accent);
+    border-color: var(--color-accent);
+    transform: scale(1.1);
+}
+
+/* 进度条 */
+.progress-container {
+    height: 8px;
+    background-color: var(--color-border);
+    border-radius: var(--radius-round);
+    overflow: hidden;
+    margin: var(--spacing-sm) 0;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: var(--color-success);
+    border-radius: var(--radius-round);
+    transition: width 0.3s ease;
+}
+
+/* 模态框/弹窗 */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(61, 53, 48, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-content {
+    background-color: var(--color-bg);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    width: 90%;
+    max-width: 360px;
+    transform: translateY(20px);
+    transition: transform 0.3s;
+}
+
+.modal-overlay.active .modal-content {
+    transform: translateY(0);
+}
+
+/* ========== 额外组件样式 ========== */
+
+/* 页面标题 */
+.page-header {
+    margin-bottom: var(--spacing-lg);
+}
+
+.page-header h2 {
+    font-size: 24px;
+    font-weight: bold;
+    margin-bottom: 4px;
+}
+
+.page-header .subtitle {
+    color: var(--color-text-light);
+    font-size: 14px;
+}
+
+/* 返回按钮 */
+.btn-back {
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: var(--color-accent);
+    cursor: pointer;
+    padding: 8px 0;
+    margin-bottom: 8px;
+    display: inline-block;
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--color-text-light);
+}
+
+.empty-state p {
+    margin-bottom: 8px;
+    line-height: 1.6;
+}
+
+/* 目标卡片 */
+.goal-card {
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.goal-card:active {
+    transform: scale(0.98);
+}
+
+.goal-title {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+.goal-why {
+    font-size: 14px;
+    color: var(--color-text-light);
+    font-style: italic;
+    margin-bottom: 12px;
+    line-height: 1.5;
+}
+
+.goal-meta {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--color-text-light);
+}
+
+/* 操作栏 */
+.action-bar {
+    margin-top: var(--spacing-lg);
+}
+
+/* 最大目标提示 */
+.max-goals-msg {
+    text-align: center;
+    padding: 20px;
+    color: var(--color-text-light);
+    font-style: italic;
+}
+
+/* 表单组 */
+.form-container {
+    margin-top: var(--spacing-md);
+}
+
+.form-group {
+    margin-bottom: var(--spacing-lg);
+}
+
+.form-group label {
+    display: block;
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.input-text {
+    width: 100%;
+    padding: 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: var(--color-card-bg);
+    font-family: inherit;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.input-text:focus {
+    border-color: var(--color-accent);
+}
+
+.textarea {
+    width: 100%;
+    padding: 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--color-border);
+    background: var(--color-card-bg);
+    font-family: inherit;
+    font-size: 16px;
+    outline: none;
+    resize: none;
+    min-height: 100px;
+    transition: border-color 0.2s;
+    box-sizing: border-box;
+}
+
+.textarea:focus {
+    border-color: var(--color-accent);
+}
+
+/* 专注统计 */
+.focus-stats {
+    padding: var(--spacing-md) 0;
+    font-size: 15px;
+    color: var(--color-text-light);
+}
+
+.focus-task-name {
+    font-size: 20px;
+    font-weight: 600;
+    margin: var(--spacing-md) 0;
+}
+
+.focus-task-name.completed {
+    color: var(--color-success);
+}
+
+.btn-large {
+    padding: 16px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+/* 专注记录卡片 */
+.session-card h4 {
+    margin-bottom: 8px;
+    font-size: 16px;
+}
+
+.session-meta {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    font-size: 13px;
+    color: var(--color-text-light);
+}
+
+/* 分割线 */
+.divider {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: var(--spacing-lg) 0;
+}
+
+/* 链接操作 */
+.link-action {
+    color: var(--color-accent);
+    text-decoration: none;
+    font-size: 14px;
+}
+
+.link-action:hover {
+    text-decoration: underline;
+}
+
+/* 按钮悬停效果 */
+.btn:hover {
+    opacity: 0.9;
+    filter: brightness(1.05);
+}
+
+.btn:active {
+    transform: scale(0.98);
+}
+
+/* ========== 🏛️ 修 · 五艺 专属样式 ========== */
+.skill-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.skill-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(61, 53, 48, 0.08);
+}
+
+.skill-card.locked {
+    cursor: default;
+    transform: none !important;
+}
+
+.unit-item-card {
+    transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.unit-item-card:hover {
+    transform: translateX(3px);
+    background-color: #FAF6F1;
+}
+
+.step-card {
+    transition: box-shadow 0.2s ease;
+}
+
+.step-card:hover {
+    box-shadow: 0 4px 14px rgba(61, 53, 48, 0.06);
+}
+
+.step-mood-opt {
+    transition: transform 0.15s ease;
+    user-select: none;
+}
+
+.step-mood-opt:hover {
+    transform: scale(1.2);
+}
+
+.skill-home-card {
+    transition: transform 0.2s ease;
+}
+
+.skill-home-card:hover {
+    transform: translateY(-2px);
+}
+
+/* ========== 🌙 暗夜深色模式支持 ========== */
+body.dark-mode {
+    --color-bg: #141A23;
+    --color-text: #E2E8F0;
+    --color-text-light: #94A3B8;
+    --color-accent: #E2B77E;
+    --color-card-bg: #1E293B;
+    --color-border: #334155;
+    background-color: #0B0F14;
+}
+
+body.dark-mode .app-container {
+    background-color: var(--color-bg);
+    color: var(--color-text);
+}
+
+body.dark-mode .global-header {
+    background-color: var(--color-bg);
+    border-color: var(--color-border);
+}
+
+body.dark-mode .header-brand {
+    color: var(--color-text);
+}
+
+body.dark-mode input,
+body.dark-mode textarea,
+body.dark-mode select {
+    background-color: #243044 !important;
+    color: #E2E8F0 !important;
+    border-color: #334155 !important;
+}
+
+body.dark-mode .card {
+    background-color: var(--color-card-bg) !important;
+    border-color: var(--color-border) !important;
+    color: var(--color-text) !important;
+}
+
+body.dark-mode .bottom-nav {
+    background-color: #1A2332;
+    border-color: #334155;
+}
+
+body.dark-mode .nav-item {
+    color: var(--color-text-light);
+}
+
+body.dark-mode .nav-item.active {
+    color: var(--color-accent);
+}
+
+
+
