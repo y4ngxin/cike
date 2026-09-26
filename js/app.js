@@ -100,5 +100,5 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    console.log('「此刻」(CiKe) v1.0.0 正式发布版已就绪 🚀');
+    console.log('「此刻」(CiKe) v1.3.1 已就绪 🚀');
 });

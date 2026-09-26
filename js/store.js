@@ -685,6 +685,10 @@ window.CiKeStore = (function() {
             };
         },
 
+        // ---------- 📖 新手引导标记（内容只教一次，之后收起，避免长期噪音） ----------
+        getSkillsIntroSeen() { return get('skills_intro_seen', false); },
+        markSkillsIntroSeen() { set('skills_intro_seen', true); },
+
         // ==========================================
         // 🏆 结业检验 · 精通认定 Verifications
         // {verifiedAt, evidence, verified}
@@ -1456,7 +1460,7 @@ window.CiKeStore = (function() {
          */
         _knownKeys: [
             'goals', 'records', 'focus_sessions', 'today_focus', 'plan_tasks',
-            'settings', 'checkins', 'verifications',
+            'settings', 'checkins', 'verifications', 'skills_intro_seen',
             'skills_progress', 'quiz_stats', 'review_items', 'review_stats',
             'daily_stats', 'daily_quests', 'badges', 'training_log',
             'streak_freeze', 'streak_patches'
@@ -1465,7 +1469,7 @@ window.CiKeStore = (function() {
         exportDataJSON() {
             const exportData = {
                 app: 'CiKe (此刻)',
-                version: '1.0.0',
+                version: '1.3.1',
                 exportedAt: new Date().toISOString(),
                 data: {}
             };

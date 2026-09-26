@@ -37,33 +37,24 @@ window.HomePage = {
         const loop = store.getDailyLoop();
         const streak = store.getStreak();
         const records = store.getRecords();
-        const recentRecords = records.slice(0, 3);
+        const recentRecords = records.slice(0, 2);
         const activeSkillData = store.getActiveSkillUnit();
 
-        // 连续天数徽章（温柔语气）
+        // 紧凑头部：问候 + 日期 + 连续天数 压成一行（原为独立大区块 + 1 条分隔线）
         const streakChip = streak.days > 0
-            ? `<div style="text-align: right; font-size: 12px; color: var(--color-accent); background: rgba(212,165,116,0.14); padding: 6px 10px; border-radius: 12px; white-space: nowrap; flex: none;">${streak.todayActive ? '🔥' : '🌱'} 连续第 ${streak.days} 天</div>`
+            ? `<span style="font-size: 12px; color: var(--color-accent); background: rgba(212,165,116,0.14); padding: 5px 10px; border-radius: 12px; white-space: nowrap; flex: none;">${streak.todayActive ? '🔥' : '🌱'} 连续第 ${streak.days} 天</span>`
             : '';
 
         let html = `
-            <div class="page-header home-header">
-                <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 12px;">
-                    <div>
-                        <h2 style="font-size: 28px; margin-bottom: 8px;">${greeting}，</h2>
-                        <p class="date-display" style="color: var(--color-text-light); margin: 0;">${dateStr}</p>
-                    </div>
-                    ${streakChip}
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 18px;">
+                <div style="min-width: 0;">
+                    <div style="font-size: 20px; font-weight: bold; color: var(--color-text); line-height: 1.3;">${greeting}</div>
+                    <div style="font-size: 12px; color: var(--color-text-light); margin-top: 2px;">${dateStr}</div>
                 </div>
+                ${streakChip}
             </div>
 
-            <hr class="divider" style="border: none; border-top: 1px solid var(--color-border); margin: 24px 0;">
-
-            <!-- 🔄 今日日循环 -->
-            ${this.renderDailyLoop(loop)}
-
-            <hr class="divider" style="border: none; border-top: 1px solid var(--color-border); margin: 24px 0;">
-
-            <!-- ⭐ 今日一事 -->
+            <!-- ⭐ 今日一事（绝对主角，置顶：先回答"今天该做什么"，再回答"走到哪了"） -->
             <div class="card focus-card" style="border-left: 4px solid var(--color-accent);">
                 <div style="display: flex; justify-content: space-between; align-items: baseline;">
                     <h3 style="margin: 0;">⭐ 今日一事</h3>
@@ -71,35 +62,49 @@ window.HomePage = {
                 </div>
                 ${this.renderTodayFocus(todayFocus)}
             </div>
+
+            <!-- 🔄 今日日循环（压缩为单行胶囊条，晚间提示折入本卡） -->
+            ${this.renderDailyLoop(loop, hour)}
         `;
 
-        // 🏛️ 今日修炼卡片
+        // 🏛️ 继续修炼卡片（原命名「今日修炼」与 today-training 页同名不同物，已改名去歧义）
         if (activeSkillData && activeSkillData.skill && activeSkillData.unit) {
             const { skill, unit, unitProg } = activeSkillData;
-            let stepBadge = "📖 知·理解";
-            if (unitProg.know && !unitProg.observe) stepBadge = "👁️ 观·觉察";
-            else if (unitProg.observe && !unitProg.practice) stepBadge = "🤸 行·实操";
-            else if (unitProg.practice && !unitProg.reflect) stepBadge = "🪞 省·反思";
-            else if (unitProg.reflect) stepBadge = "✅ 已通关";
+            const content = store.getUnitContent(skill.id, unit.unitNumber);
+            const hasQuiz = !!(content && content.quiz && content.quiz.length);
+            const complete = store.isUnitComplete(unitProg, content);
+
+            // 五步口径（v1.3 起新增「练」）：展示"下一个待做"；通关判定一律交给 isUnitComplete
+            const steps = [
+                { badge: '📖 知 · 理解', done: !!unitProg.know },
+                { badge: '🎯 练 · 提取', done: !!(unitProg.quiz && unitProg.quiz.passed), skip: !hasQuiz },
+                { badge: '👁️ 观 · 觉察', done: !!unitProg.observe },
+                { badge: '🤸 行 · 实操', done: !!unitProg.practice },
+                { badge: '🪞 省 · 反思', done: !!unitProg.reflect }
+            ].filter(s => !s.skip);
+            const nextStep = steps.find(s => !s.done);
+            const stepBadge = complete ? '✅ 已通关' : (nextStep ? nextStep.badge : '📖 知 · 理解');
+
+            // 预览文案优先取增厚内容的首张微卡标题；未升级内容降级回 know.title
+            const firstCard = (content && content.cards && content.cards.length) ? content.cards[0] : null;
+            const previewText = firstCard ? firstCard.title : (unit.know ? unit.know.title : '');
 
             html += `
                 <div class="card skill-home-card" style="border-left: 4px solid ${skill.color};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                        <h3 style="margin: 0; font-size: 16px; font-weight: bold;">🏛️ 今日修炼</h3>
+                        <h3 style="margin: 0; font-size: 16px; font-weight: bold;">🏛️ 继续修炼</h3>
                         <span style="font-size: 12px; background: rgba(0,0,0,0.06); color: ${skill.color}; padding: 2px 8px; border-radius: 10px; font-weight: 600;">${stepBadge}</span>
                     </div>
                     <p style="margin: 4px 0 6px 0; font-size: 15px; font-weight: bold; color: var(--color-text);">
                         ${skill.icon} ${skill.title} · 单元 ${unit.unitNumber}：${unit.title}
                     </p>
                     <div style="font-size: 13px; color: var(--color-text-light); margin-bottom: 12px; line-height: 1.4;">
-                        ${unit.know.title}
+                        ${previewText}
                     </div>
                     <button id="btn-home-learn" class="btn" style="background: ${skill.color}; color: white; border: none; padding: 10px; border-radius: 8px; font-size: 14px; width: 100%;">
                         继续修炼 →
                     </button>
                 </div>
-
-                <hr class="divider" style="border: none; border-top: 1px solid var(--color-border); margin: 24px 0;">
             `;
         }
 
@@ -132,50 +137,38 @@ window.HomePage = {
             </div>
         `;
 
-        // 晚上 6 点后提示晚间回顾（若三环未齐）
-        if (hour >= 18 && !loop.evening) {
-            html += `
-                <hr class="divider" style="border: none; border-top: 1px solid var(--color-border); margin: 24px 0;">
-                <div class="evening-prompt">
-                    <button id="btn-evening-reflection" class="btn" style="width: 100%; background: var(--color-border); border: none; padding: 16px; border-radius: 12px; color: var(--color-text); font-size: 16px;">🌙 该做今天的回顾了</button>
-                </div>
-            `;
-        }
-
         container.innerHTML = html;
         this.bindEvents(container, activeSkillData);
     },
 
-    /** 🔄 日循环三环进度条 */
-    renderDailyLoop: function(loop) {
+    /** 🔄 今日日循环（单行胶囊条：占位从 ~160px 压到 ~46px；晚间提示折入本卡） */
+    renderDailyLoop: function(loop, hour) {
         const icons = this.LOOP_ICONS;
-        const stepsHtml = loop.steps.map((s, idx) => {
-            const ring = `
-                <button class="loop-step" data-route="${s.route}" style="flex: 1; background: none; border: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 0;">
-                    <span style="width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; border: 2px solid ${s.done ? 'var(--color-success)' : 'var(--color-border)'}; background: ${s.done ? 'rgba(91,140,111,0.14)' : 'transparent'}; color: ${s.done ? 'var(--color-success)' : 'var(--color-text-light)'};">${s.done ? '✓' : icons[s.key]}</span>
-                    <span style="font-size: 11px; color: ${s.done ? 'var(--color-success)' : 'var(--color-text-light)'}; font-weight: ${s.done ? '600' : '400'};">${s.label}</span>
-                </button>
-            `;
-            const connector = idx < loop.steps.length - 1
-                ? `<span style="flex: none; width: 18px; height: 2px; background: var(--color-border); margin-top: 20px;"></span>`
-                : '';
-            return ring + connector;
-        }).join('');
 
-        const footer = loop.allDone
-            ? `<div style="margin-top: 14px; padding: 10px 12px; border-radius: 10px; background: rgba(91,140,111,0.1); font-size: 13px; color: var(--color-success); text-align: center;">今天的三环都亮了 —— 好好休息一下吧。</div>`
-            : `<div style="margin-top: 14px; font-size: 12px; color: var(--color-text-light); text-align: center;">还有 ${loop.total - loop.doneCount} 环，今天就走完这一圈了</div>`;
+        const pills = loop.steps.map(s => `
+            <button class="loop-step" data-route="${s.route}" style="flex: 1; min-width: 0; background: ${s.done ? 'rgba(91,140,111,0.14)' : 'var(--color-bg)'}; border: 1px solid ${s.done ? 'var(--color-success)' : 'var(--color-border)'}; border-radius: 8px; padding: 6px 4px; font-size: 11px; color: ${s.done ? 'var(--color-success)' : 'var(--color-text-light)'}; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: ${s.done ? '600' : '400'};">${s.done ? '✓' : icons[s.key]} ${s.label}</button>
+        `).join('');
+
+        // 晚间回顾提示：原为独立区块 + 1 条分隔线，现折成卡内一行
+        let hint;
+        if (hour >= 18 && !loop.evening) {
+            hint = `<button id="btn-evening-reflection" style="background: none; border: none; padding: 0; margin-top: 8px; font-size: 12px; color: var(--color-accent); cursor: pointer;">🌙 该做今天的回顾了 →</button>`;
+        } else if (loop.allDone) {
+            hint = `<div style="margin-top: 8px; font-size: 12px; color: var(--color-success);">今天的三环都亮了 —— 好好休息一下吧。</div>`;
+        } else {
+            hint = `<div style="margin-top: 8px; font-size: 12px; color: var(--color-text-light);">还有 ${loop.total - loop.doneCount} 环，今天就走完这一圈了</div>`;
+        }
 
         return `
-            <div class="card" style="padding: 16px;">
-                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
-                    <span style="font-size: 15px; font-weight: bold;">🔄 今日日循环</span>
+            <div class="card" style="padding: 13px 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+                    <span style="font-size: 13px; font-weight: bold; color: var(--color-text);">🔄 今日日循环</span>
                     <span style="font-size: 12px; color: var(--color-accent); font-weight: 600;">${loop.doneCount} / ${loop.total}</span>
                 </div>
-                <div style="display: flex; align-items: flex-start;">
-                    ${stepsHtml}
+                <div style="display: flex; gap: 6px;">
+                    ${pills}
                 </div>
-                ${footer}
+                ${hint}
             </div>
         `;
     },

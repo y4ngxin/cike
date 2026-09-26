@@ -3,7 +3,7 @@
  * 实现全站资源完全离线访问，打造原生 App 级本地加载速度
  */
 
-const CACHE_NAME = 'cike-v1.3.0';
+const CACHE_NAME = 'cike-v1.3.1';
 
 const ASSETS_TO_CACHE = [
     './',
