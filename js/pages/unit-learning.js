@@ -164,6 +164,9 @@ window.UnitLearningPage = {
                     <button id="btn-done-practice" class="btn" style="background: ${unitProg.practice ? '#E0D8D0' : '#E58E26'}; color: ${unitProg.practice ? '#555' : 'white'}; border: none; padding: 10px; font-size: 14px; border-radius: 8px; width: 100%;">
                         ${unitProg.practice ? '实践任务已完成' : '我已完成此实操练习 ✓'}
                     </button>
+                    <button id="btn-set-unit-focus" class="btn" style="margin-top: 8px; background: none; border: 1px solid var(--color-border); color: var(--color-text); padding: 9px; font-size: 13px; border-radius: 8px; width: 100%;">
+                        ⭐ 设为我今天的今日一事
+                    </button>
                 </div>
 
                 <!-- 4. 🪞 省 · 反思复盘 -->
@@ -255,6 +258,23 @@ window.UnitLearningPage = {
             });
         }
 
+        // ⭐ 把本次修炼设为今日一事（打通 五艺 → 炬）
+        const btnSetFocus = container.querySelector('#btn-set-unit-focus');
+        if (btnSetFocus) {
+            btnSetFocus.addEventListener('click', () => {
+                const skills = window.CiKeSkillsData || [];
+                const skill = skills.find(s => s.id === skillId);
+                const unit = skill && skill.units.find(u => u.unitNumber === unitNumber);
+                const task = unit && unit.practice ? unit.practice.title : '五艺修炼';
+                store.setTodayFocus({
+                    task: task,
+                    source: 'skills',
+                    sourceRef: `${skillId}:${unitNumber}`
+                });
+                window.CiKeUI.toast('已设为今日一事，去「🔥 炬」开始专注吧', 'success');
+            });
+        }
+
         // 心情切换
         let selectedMood = '🙂';
         const moodEls = container.querySelectorAll('.step-mood-opt');
@@ -273,7 +293,7 @@ window.UnitLearningPage = {
                 const textarea = container.querySelector('#unit-reflect-text');
                 const text = textarea ? textarea.value.trim() : '';
                 if (!text) {
-                    alert('请写下几句真实反思再提交，复盘是学习的倍增器。');
+                    window.CiKeUI.toast('写几句真实反思再提交，复盘是学习的倍增器', 'warn');
                     return;
                 }
 
@@ -282,7 +302,7 @@ window.UnitLearningPage = {
                     mood: selectedMood
                 });
 
-                alert('反思已保存，并已同步沉淀至你的「🪞 镜 · 记录」！');
+                window.CiKeUI.toast('反思已保存，并同步到「🪞 镜」', 'success');
                 this.render(container, { skill: skillId, unit: unitNumber });
             });
         }
@@ -295,15 +315,15 @@ window.UnitLearningPage = {
                 const confirmEl = container.querySelector('#verify-confirm');
                 const evidence = evidenceEl ? evidenceEl.value.trim() : '';
                 if (!evidence) {
-                    alert('请写下你的检验实证——这是认定「精通」的唯一依据。');
+                    window.CiKeUI.toast('写下检验实证，这是认定「精通」的唯一依据', 'warn');
                     return;
                 }
                 if (confirmEl && !confirmEl.checked) {
-                    alert('请先确认你已达到该技能的检验标准。');
+                    window.CiKeUI.toast('请先确认你已达到该技能的检验标准', 'warn');
                     return;
                 }
                 store.saveVerification(skillId, { evidence });
-                alert('🏆 恭喜通过结业检验，该技能等级已认定「精通」。这份里程碑已同步沉淀至你的「🪞 镜」。');
+                window.CiKeUI.toast('🏆 恭喜！该技能已认定「精通」，里程碑已同步到「🪞 镜」', 'success', 3200);
                 this.render(container, { skill: skillId, unit: unitNumber });
             });
         }

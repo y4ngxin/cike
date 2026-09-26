@@ -164,10 +164,18 @@ window.FocusPage = {
 
         const btnSet = container.querySelector('#btn-set-focus');
         if (btnSet) {
-            btnSet.addEventListener('click', () => {
-                const task = prompt('今天要专注完成的一件事是什么？');
-                if (task && task.trim()) {
-                    window.CiKeStore.setTodayFocus({ task: task.trim() });
+            btnSet.addEventListener('click', async () => {
+                const task = await window.CiKeUI.prompt({
+                    title: '⭐ 今日一事',
+                    message: '一次只做一件事。今天最想做成的是哪一件？',
+                    placeholder: '例如：完成 Figma 第 6 课',
+                    confirmText: '就做它',
+                    required: true,
+                    errorText: '写下一件事，今天才有着力点'
+                });
+                if (task) {
+                    window.CiKeStore.setTodayFocus({ task });
+                    window.CiKeUI.toast('今日一事已定下', 'success');
                     this.render(container);
                 }
             });
@@ -175,14 +183,19 @@ window.FocusPage = {
 
         // 🍅 番茄钟时长选择
         container.querySelectorAll('.pomo-dur-chip').forEach(chip => {
-            chip.addEventListener('click', () => {
+            chip.addEventListener('click', async () => {
                 const min = parseInt(chip.getAttribute('data-min'), 10);
                 if (min === 0) {
-                    const input = prompt('自定义番茄专注时长（1 - 180 分钟）：', this.selectedPomoMinutes);
+                    const input = await window.CiKeUI.prompt({
+                        title: '自定义专注时长',
+                        message: '输入 1 - 180 之间的整数（分钟）',
+                        defaultValue: this.selectedPomoMinutes,
+                        confirmText: '确定'
+                    });
                     if (input === null) return;
                     const val = parseInt(input, 10);
                     if (!val || val < 1 || val > 180) {
-                        alert('请输入 1 - 180 之间的整数。');
+                        window.CiKeUI.toast('请输入 1 - 180 之间的整数', 'warn');
                         return;
                     }
                     this.selectedPomoMinutes = val;
@@ -204,31 +217,26 @@ window.FocusPage = {
         // ⚙️ 番茄钟参数
         const btnConfig = container.querySelector('#btn-pomo-config');
         if (btnConfig) {
-            btnConfig.addEventListener('click', () => {
+            btnConfig.addEventListener('click', async () => {
                 const store = window.CiKeStore;
                 const cur = store.getPomodoroSettings();
 
-                const work = prompt('每个番茄的专注时长（分钟）：', cur.workMinutes);
-                if (work === null) return;
-                const short = prompt('短休息时长（分钟）：', cur.shortBreak);
-                if (short === null) return;
-                const long = prompt('长休息时长（分钟）：', cur.longBreak);
-                if (long === null) return;
-                const rounds = prompt('每几轮番茄后进入长休息：', cur.roundsBeforeLongBreak);
-                if (rounds === null) return;
-
-                const clamp = (v, def, min, max) => {
-                    const n = parseInt(v, 10);
-                    if (isNaN(n) || n < min || n > max) return def;
-                    return n;
-                };
-                store.savePomodoroSettings({
-                    workMinutes: clamp(work, cur.workMinutes, 1, 180),
-                    shortBreak: clamp(short, cur.shortBreak, 1, 60),
-                    longBreak: clamp(long, cur.longBreak, 1, 120),
-                    roundsBeforeLongBreak: clamp(rounds, cur.roundsBeforeLongBreak, 1, 12)
+                const vals = await window.CiKeUI.form({
+                    title: '⚙️ 番茄钟参数',
+                    message: '调好节奏，让专注更顺。',
+                    confirmText: '保存',
+                    fields: [
+                        { key: 'workMinutes', label: '每个番茄的专注时长（分钟）', type: 'number', value: cur.workMinutes, min: 1, max: 180, error: '请输入 1 - 180 之间的整数' },
+                        { key: 'shortBreak', label: '短休息时长（分钟）', type: 'number', value: cur.shortBreak, min: 1, max: 60, error: '请输入 1 - 60 之间的整数' },
+                        { key: 'longBreak', label: '长休息时长（分钟）', type: 'number', value: cur.longBreak, min: 1, max: 120, error: '请输入 1 - 120 之间的整数' },
+                        { key: 'roundsBeforeLongBreak', label: '每几轮番茄后进入长休息', type: 'number', value: cur.roundsBeforeLongBreak, min: 1, max: 12, error: '请输入 1 - 12 之间的整数' }
+                    ]
                 });
+                if (!vals) return;
+
+                store.savePomodoroSettings(vals);
                 this.selectedPomoMinutes = store.getPomodoroSettings().workMinutes;
+                window.CiKeUI.toast('番茄参数已保存', 'success');
                 this.render(container);
             });
         }

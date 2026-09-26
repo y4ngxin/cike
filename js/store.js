@@ -155,6 +155,80 @@ window.CiKeStore = (function() {
         },
 
         // ==========================================
+        // 🗺️ 目标蓝图 · 阶段拆解（大目标 → 阶段 → 本周聚焦 → 今日一事）
+        // milestone: {id, text, done, focusOfWeek, createdAt, completedAt}
+        // ==========================================
+        getGoalMilestones(goalId) {
+            const g = this.getGoal(goalId);
+            return (g && g.milestones) || [];
+        },
+        addGoalMilestone(goalId, text) {
+            const goals = this.getGoals();
+            const g = goals.find(x => x.id === goalId);
+            if (!g || !text || !text.trim()) return null;
+            if (!g.milestones) g.milestones = [];
+            const ms = {
+                id: generateId(),
+                text: text.trim(),
+                done: false,
+                focusOfWeek: false,
+                createdAt: Date.now(),
+                completedAt: null
+            };
+            g.milestones.push(ms);
+            set('goals', goals);
+            return ms;
+        },
+        toggleGoalMilestone(goalId, milestoneId) {
+            const goals = this.getGoals();
+            const g = goals.find(x => x.id === goalId);
+            const ms = g && (g.milestones || []).find(m => m.id === milestoneId);
+            if (!ms) return null;
+            ms.done = !ms.done;
+            ms.completedAt = ms.done ? Date.now() : null;
+            set('goals', goals);
+            return ms;
+        },
+        deleteGoalMilestone(goalId, milestoneId) {
+            const goals = this.getGoals();
+            const g = goals.find(x => x.id === goalId);
+            if (!g || !g.milestones) return;
+            g.milestones = g.milestones.filter(m => m.id !== milestoneId);
+            set('goals', goals);
+        },
+        /** 设为「本周聚焦」（全局唯一） */
+        setMilestoneAsWeeklyFocus(goalId, milestoneId) {
+            const goals = this.getGoals();
+            const target = goals.find(x => x.id === goalId);
+            const ms = target && (target.milestones || []).find(m => m.id === milestoneId);
+            if (!ms) return null;
+
+            goals.forEach(g => (g.milestones || []).forEach(m => { m.focusOfWeek = false; }));
+            const fresh = goals.find(x => x.id === goalId).milestones.find(m => m.id === milestoneId);
+            fresh.focusOfWeek = true;
+            set('goals', goals);
+            return fresh;
+        },
+        /** 读取当前「本周聚焦」 */
+        getWeeklyFocus() {
+            for (const g of this.getGoals()) {
+                const ms = (g.milestones || []).find(m => m.focusOfWeek);
+                if (ms) return { goal: g, milestone: ms };
+            }
+            return null;
+        },
+        /** 把「本周聚焦」的点直接设为今日一事 */
+        setWeeklyFocusAsTodayFocus() {
+            const wf = this.getWeeklyFocus();
+            if (!wf) return null;
+            return this.setTodayFocus({
+                task: wf.milestone.text,
+                source: 'goal',
+                sourceRef: wf.goal.id
+            });
+        },
+
+        // ==========================================
         // 📐 图 · 计划 (Plan / Eisenhower Quadrants)
         // {id, text, quadrant: 1|2|3|4, completed: false, createdAt}
         // Q1: 重要且紧急 | Q2: 重要不紧急(核心) | Q3: 紧急不重要 | Q4: 不紧急不重要
@@ -168,12 +242,17 @@ window.CiKeStore = (function() {
                 id: generateId(),
                 text: taskData.text,
                 quadrant: parseInt(taskData.quadrant, 10) || 2, // 默认第二象限
+                goalId: taskData.goalId || null, // 可挂载到北极星目标（可选）
                 completed: false,
                 createdAt: Date.now()
             };
             tasks.unshift(newTask);
             set('plan_tasks', tasks);
             return newTask;
+        },
+        /** 某个北极星目标关联的计划任务 */
+        getGoalPlanTasks(goalId) {
+            return this.getPlanTasks().filter(t => t.goalId === goalId);
         },
         togglePlanTask(id) {
             const tasks = this.getPlanTasks();
@@ -192,7 +271,7 @@ window.CiKeStore = (function() {
         setPlanTaskAsTodayFocus(taskId) {
             const task = this.getPlanTasks().find(t => t.id === taskId);
             if (task) {
-                return this.setTodayFocus({ task: task.text });
+                return this.setTodayFocus({ task: task.text, source: 'plan', sourceRef: task.id });
             }
             return null;
         },
@@ -235,15 +314,26 @@ window.CiKeStore = (function() {
             return null;
         },
         setTodayFocus(focusData) {
-            const task = typeof focusData === 'string' ? focusData : (focusData && focusData.task);
+            const isObj = focusData && typeof focusData === 'object';
+            const task = typeof focusData === 'string' ? focusData : (isObj ? focusData.task : '');
             const focus = {
                 id: generateId(),
                 task: task || '自由专注',
                 date: getTodayStr(),
-                completed: false
+                completed: false,
+                // 来源标注：manual(炬页手写) | morning(晨间三问) | plan(计划看板) | skills(五艺修炼) | goal(北极星蓝图)
+                source: (isObj && focusData.source) || this.getTodayFocusSource(task, focusData) || 'manual',
+                sourceRef: (isObj && focusData.sourceRef) || null
             };
             set('today_focus', focus);
             return focus;
+        },
+        /** 未显式传 source 时，尝试从晨间三问推断来源（保证向后兼容） */
+        getTodayFocusSource(task) {
+            if (!task) return 'manual';
+            const m = this.getTodayCheckin('morning');
+            if (m && m.answers && m.answers.topTask === task) return 'morning';
+            return 'manual';
         },
         completeTodayFocus() {
             const focus = this.getTodayFocus();
@@ -251,6 +341,79 @@ window.CiKeStore = (function() {
                 focus.completed = true;
                 set('today_focus', focus);
             }
+        },
+        /** 清除今日一事（用于"换一件事"） */
+        clearTodayFocus() {
+            set('today_focus', null);
+        },
+
+        // ==========================================
+        // 🌱 日循环与连续性 Daily Loop & Streak
+        // 产品的核心是一条日循环：晨间三问 → 一次专注 → 晚间回顾 → 周期性看见模式
+        // ==========================================
+        /**
+         * 今日日循环三环状态
+         * @returns {{steps:Array, doneCount:number, total:number, allDone:boolean, morning:boolean, focus:boolean, evening:boolean}}
+         */
+        getDailyLoop() {
+            const morning = !!this.getTodayCheckin('morning');
+            const evening = !!this.getTodayCheckin('evening');
+            const todayStr = new Date().toDateString();
+            const hasFocusSession = this.getFocusSessions()
+                .some(s => new Date(s.completedAt).toDateString() === todayStr);
+            const focus = hasFocusSession || !!(this.getTodayFocus() && this.getTodayFocus().completed);
+
+            const steps = [
+                { key: 'morning', label: '晨间三问', route: 'morning-checkin', done: morning },
+                { key: 'focus', label: '一次专注', route: 'focus', done: focus },
+                { key: 'evening', label: '晚间回顾', route: 'evening-reflection', done: evening }
+            ];
+            const doneCount = steps.filter(s => s.done).length;
+            return {
+                steps,
+                doneCount,
+                total: steps.length,
+                allDone: doneCount === steps.length,
+                morning,
+                focus,
+                evening
+            };
+        },
+        /** 汇总所有有"实质行为"的日期集合（记录 / 签到 / 专注） */
+        getActivityDates() {
+            const set = new Set();
+            const add = ts => { if (ts) set.add(new Date(ts).toDateString()); };
+            this.getRecords().forEach(r => add(r.createdAt));
+            this.getCheckins().forEach(c => add(c.createdAt));
+            this.getFocusSessions().forEach(s => add(s.completedAt));
+            return set;
+        },
+        /**
+         * 连续修炼天数
+         * 定义：连续 "有实质行为" 的天数。今天还没开始也不会清零——从昨天往前回溯。
+         * @returns {{days:number, todayActive:boolean}}
+         */
+        getStreak() {
+            const active = this.getActivityDates();
+            const today = new Date();
+            const todayKey = today.toDateString();
+            const yesterdayKey = new Date(today.getTime() - 86400000).toDateString();
+
+            let cursor;
+            if (active.has(todayKey)) {
+                cursor = today;
+            } else if (active.has(yesterdayKey)) {
+                cursor = new Date(today.getTime() - 86400000);
+            } else {
+                return { days: 0, todayActive: false };
+            }
+
+            let days = 0;
+            while (active.has(cursor.toDateString())) {
+                days++;
+                cursor = new Date(cursor.getTime() - 86400000);
+            }
+            return { days, todayActive: active.has(todayKey) };
         },
 
         // ==========================================

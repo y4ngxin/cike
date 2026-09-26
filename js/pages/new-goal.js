@@ -52,7 +52,7 @@ window.NewGoalPage = {
             const why = container.querySelector('#goal-why').value.trim();
 
             if (!title) {
-                alert('请填写方向名称');
+                window.CiKeUI.toast('请填写方向名称', 'warn');
                 return;
             }
 

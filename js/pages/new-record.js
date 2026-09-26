@@ -58,7 +58,7 @@
             container.querySelector('#save-record').addEventListener('click', () => {
                 const content = textarea.value.trim();
                 if (!content) {
-                    alert('请填写记录内容。');
+                    window.CiKeUI.toast('请填写记录内容', 'warn');
                     return;
                 }
 

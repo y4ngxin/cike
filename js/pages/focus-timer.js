@@ -152,25 +152,34 @@ window.FocusTimerPage = {
         let selectedMood = '🙂';
         
         // 退出按钮
-        container.querySelector('#btn-timer-exit').addEventListener('click', () => {
+        container.querySelector('#btn-timer-exit').addEventListener('click', async () => {
             if (this.elapsedSeconds > 60) {
-                if (confirm('已专注了一段时间，是否确定放弃并退出？')) {
-                    this.cleanup(container);
-                    window.CiKeRouter.navigate('focus');
-                }
-            } else {
-                this.cleanup(container);
-                window.CiKeRouter.navigate('focus');
+                const ok = await window.CiKeUI.confirm({
+                    title: '结束这次专注？',
+                    message: '已经专注了一段时间，确定放弃并退出吗？',
+                    confirmText: '结束退出',
+                    cancelText: '再坚持一会',
+                    danger: true
+                });
+                if (!ok) return;
             }
+            this.cleanup(container);
+            window.CiKeRouter.navigate('focus');
         });
 
         // 走神便签功能：不中断计时，记下杂念
         const btnDistract = container.querySelector('#btn-quick-distract');
-        btnDistract.addEventListener('click', () => {
-            const note = prompt('脑海里突然冒出的杂念是什么？先记下来，安心继续专注：');
-            if (note && note.trim()) {
-                window.CiKeStore.addDistractionNote(note.trim(), taskName);
-                alert('已快速存入便签，现在心无旁骛继续投入吧。');
+        btnDistract.addEventListener('click', async () => {
+            const note = await window.CiKeUI.prompt({
+                title: '⚡ 走神便签',
+                message: '先把杂念放在这里，安心继续专注。',
+                placeholder: '脑海里突然冒出的念头……',
+                multiline: true,
+                confirmText: '记下，继续'
+            });
+            if (note) {
+                window.CiKeStore.addDistractionNote(note, taskName);
+                window.CiKeUI.toast('已存入便签，继续投入吧', 'success');
             }
         });
 
@@ -615,20 +624,33 @@ window.FocusTimerPage = {
         let selectedMood = '🙂';
 
         // 退出
-        container.querySelector('#btn-pomo-exit').addEventListener('click', () => {
+        container.querySelector('#btn-pomo-exit').addEventListener('click', async () => {
             if (this.pomoRunRounds > 0) {
-                if (!confirm('本次已有完成的番茄，确定退出吗？（已完成的番茄已自动保存）')) return;
+                const ok = await window.CiKeUI.confirm({
+                    title: '退出番茄钟？',
+                    message: '本次已有完成的番茄（已自动保存），确定现在退出吗？',
+                    confirmText: '退出',
+                    cancelText: '继续专注',
+                    danger: true
+                });
+                if (!ok) return;
             }
             this.cleanup(container);
             window.CiKeRouter.navigate('focus');
         });
 
         // 走神便签（不中断番茄计时）
-        container.querySelector('#btn-pomo-distract').addEventListener('click', () => {
-            const note = prompt('脑海里突然冒出的杂念是什么？先记下来，安心继续专注：');
-            if (note && note.trim()) {
-                window.CiKeStore.addDistractionNote(note.trim(), this.pomoTask);
-                alert('已快速存入便签，现在心无旁骛继续投入吧。');
+        container.querySelector('#btn-pomo-distract').addEventListener('click', async () => {
+            const note = await window.CiKeUI.prompt({
+                title: '⚡ 走神便签',
+                message: '先把杂念放在这里，安心继续专注。',
+                placeholder: '脑海里突然冒出的念头……',
+                multiline: true,
+                confirmText: '记下，继续'
+            });
+            if (note) {
+                window.CiKeStore.addDistractionNote(note, this.pomoTask);
+                window.CiKeUI.toast('已存入便签，继续投入吧', 'success');
             }
         });
 
@@ -667,12 +689,15 @@ window.FocusTimerPage = {
         });
 
         // 跳过当前阶段（不计入番茄数）
-        container.querySelector('#btn-pomo-skip').addEventListener('click', () => {
+        container.querySelector('#btn-pomo-skip').addEventListener('click', async () => {
             const isFocus = this.pomoPhase === 'focus';
-            const msg = isFocus
-                ? '跳过当前番茄？跳过不会计入番茄数。'
-                : '结束这次休息，直接开始下一个番茄？';
-            if (!confirm(msg)) return;
+            const ok = await window.CiKeUI.confirm({
+                title: isFocus ? '跳过当前番茄？' : '结束这次休息？',
+                message: isFocus ? '跳过不会计入番茄数。' : '将直接开始下一个番茄。',
+                confirmText: isFocus ? '跳过' : '开始下一个',
+                cancelText: '取消'
+            });
+            if (!ok) return;
             this.hidePhaseOverlay(container);
             this.pomoAwaitingChoice = false;
             if (isFocus) {

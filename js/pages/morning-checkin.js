@@ -73,11 +73,11 @@
                 const concern = container.querySelector('#morning-q3').value.trim();
                 
                 if (!topTask) {
-                    alert('请填写今天最想做成的一件事。');
+                    window.CiKeUI.toast('请填写今天最想做成的一件事', 'warn');
                     return;
                 }
                 if (!selectedMood) {
-                    alert('请选择此刻的状态。');
+                    window.CiKeUI.toast('请选择此刻的状态', 'warn');
                     return;
                 }
 
@@ -88,7 +88,7 @@
                         answers: { topTask, mood: selectedMood, concern }
                     });
                     
-                    window.CiKeStore.setTodayFocus({ task: topTask });
+                    window.CiKeStore.setTodayFocus({ task: topTask, source: 'morning' });
                 }
 
                 if (window.CiKeRouter) {

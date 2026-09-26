@@ -143,22 +143,28 @@ window.SettingsPage = {
                 const content = evt.target.result;
                 const ok = store.importDataJSON(content);
                 if (ok) {
-                    alert('数据已成功恢复！应用将重新加载。');
-                    window.location.reload();
+                    window.CiKeUI.toast('数据已成功恢复，正在重新加载…', 'success');
+                    setTimeout(() => window.location.reload(), 800);
                 } else {
-                    alert('导入失败，请检查文件格式是否有效。');
+                    window.CiKeUI.toast('导入失败，请检查文件格式是否有效', 'error');
                 }
             };
             reader.readAsText(file);
         });
 
         // 清除数据
-        container.querySelector('#btn-clear-all').addEventListener('click', () => {
-            if (confirm('警告：此操作将清除你在本设备的所有日记、目标与修炼进度，且无法撤销！\n\n确定继续吗？')) {
-                store.clearAll();
-                alert('所有本地数据已重置。');
-                window.location.reload();
-            }
+        container.querySelector('#btn-clear-all').addEventListener('click', async () => {
+            const ok = await window.CiKeUI.confirm({
+                title: '清空所有本地数据？',
+                message: '将清除你在本设备的所有日记、目标与修炼进度，且无法撤销。',
+                confirmText: '确认清空',
+                cancelText: '再想想',
+                danger: true
+            });
+            if (!ok) return;
+            store.clearAll();
+            window.CiKeUI.toast('所有本地数据已重置', 'success');
+            setTimeout(() => window.location.reload(), 800);
         });
     }
 };

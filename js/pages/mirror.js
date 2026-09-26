@@ -177,29 +177,41 @@
 
             // 编辑记录
             container.querySelectorAll('.btn-edit-rec').forEach(btn => {
-                btn.addEventListener('click', (e) => {
+                btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const id = btn.getAttribute('data-id');
                     const record = store.getRecords().find(r => r.id === id);
-                    if (record) {
-                        const newContent = prompt('修改记录内容：', record.content);
-                        if (newContent !== null && newContent.trim()) {
-                            store.updateRecord(id, newContent.trim(), record.mood);
-                            this.render(container);
-                        }
+                    if (!record) return;
+                    const newContent = await window.CiKeUI.prompt({
+                        title: '修改记录',
+                        defaultValue: record.content,
+                        multiline: true,
+                        confirmText: '保存'
+                    });
+                    if (newContent !== null && newContent) {
+                        store.updateRecord(id, newContent, record.mood);
+                        window.CiKeUI.toast('已更新', 'success');
+                        this.render(container);
                     }
                 });
             });
 
             // 删除记录
             container.querySelectorAll('.btn-del-rec').forEach(btn => {
-                btn.addEventListener('click', (e) => {
+                btn.addEventListener('click', async (e) => {
                     e.stopPropagation();
                     const id = btn.getAttribute('data-id');
-                    if (confirm('确定删除此条记录吗？')) {
-                        store.deleteRecord(id);
-                        this.render(container);
-                    }
+                    const ok = await window.CiKeUI.confirm({
+                        title: '删除这条记录？',
+                        message: '删除后无法恢复。',
+                        confirmText: '删除',
+                        cancelText: '保留',
+                        danger: true
+                    });
+                    if (!ok) return;
+                    store.deleteRecord(id);
+                    window.CiKeUI.toast('已删除', 'info');
+                    this.render(container);
                 });
             });
         }

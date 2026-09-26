@@ -71,7 +71,7 @@
                 const toChange = container.querySelector('#evening-q3').value.trim();
                 
                 if (taskCompleted === null) {
-                    alert('请选择今天想做的事是否做到了。');
+                    window.CiKeUI.toast('请选择今天想做的事是否做到了', 'warn');
                     return;
                 }
 
