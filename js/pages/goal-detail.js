@@ -68,7 +68,7 @@ window.GoalDetailPage = {
                 ` : ''}
 
                 <div style="margin-top: 12px; text-align: center;">
-                    <a href="#plan" style="font-size: 12px; color: var(--color-accent); text-decoration: none;">去「📐 图」把任务挂到这个方向上${goalTaskCount ? `（已关联 ${goalTaskCount} 条）` : ''} →</a>
+                    <a href="#direction?seg=plan" style="font-size: 12px; color: var(--color-accent); text-decoration: none;">去「🧭 路 · 计划」把任务挂到这个方向上${goalTaskCount ? `（已关联 ${goalTaskCount} 条）` : ''} →</a>
                 </div>
             </div>
         `;

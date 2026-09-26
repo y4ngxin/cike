@@ -1469,7 +1469,7 @@ window.CiKeStore = (function() {
         exportDataJSON() {
             const exportData = {
                 app: 'CiKe (此刻)',
-                version: '1.3.1',
+                version: '1.3.2',
                 exportedAt: new Date().toISOString(),
                 data: {}
             };

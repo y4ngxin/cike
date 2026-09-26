@@ -11,6 +11,8 @@ window.CiKeRouter = (function() {
         'mirror':             { pageId: 'page-mirror',             hideNav: false, renderer: null },
         'direction':          { pageId: 'page-direction',          hideNav: false, renderer: null },
         'skills':             { pageId: 'page-skills',             hideNav: false, renderer: null },
+        // 'plan' 已并入「🧭 路」一级入口，正常会被 ROUTE_ALIASES 拦截重定向；
+        // 此处保留一条兜底路由，避免旧链接在别名失效时直接掉回首页
         'plan':               { pageId: 'page-plan',               hideNav: false, renderer: null },
         'focus':              { pageId: 'page-focus',              hideNav: false, renderer: null },
         
@@ -28,6 +30,12 @@ window.CiKeRouter = (function() {
         'new-goal':           { pageId: 'page-new-goal',           hideNav: true,  renderer: null },
         'focus-timer':        { pageId: 'page-focus-timer',        hideNav: true,  renderer: null },
         'settings':           { pageId: 'page-settings',           hideNav: true,  renderer: null },
+    };
+
+    // 旧链接 / 存量深链接的兼容跳转表。
+    // 「图 · 计划」在 v1.3.2 并入「路」，任何指向 #plan 的入口统一落到「路」的计划分段。
+    const ROUTE_ALIASES = {
+        'plan': 'direction?seg=plan'
     };
 
     let currentRoute = null;
@@ -79,6 +87,12 @@ window.CiKeRouter = (function() {
         let fullHash = window.location.hash.substring(1) || 'home';
         const [routeKey, queryStr] = fullHash.split('?');
         const params = parseParams(queryStr);
+
+        // 先走兼容跳转（如 #plan → #direction?seg=plan）
+        if (ROUTE_ALIASES[routeKey]) {
+            navigate(ROUTE_ALIASES[routeKey]);
+            return;
+        }
 
         if (routes[routeKey]) {
             showPage(routeKey, params);
