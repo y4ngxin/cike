@@ -13,7 +13,9 @@ window.SkillDetailPage = {
         const isUnlocked = store.isSkillUnlocked(skill.id);
         const prog = store.getSkillProgress(skill.id);
         const completedUnits = prog.completedUnits || [];
-        const level = store.calculateLevel(completedUnits.length, skill.units.length);
+        const verification = store.getVerification(skill.id);
+        const isMastered = store.isSkillMastered(skill.id);
+        const level = store.calculateLevel(completedUnits.length, skill.units.length, isMastered);
 
         let html = `
             <div class="skill-detail-container" style="max-width: 430px; margin: 0 auto; color: var(--color-text); padding-bottom: 40px;">
@@ -95,6 +97,7 @@ window.SkillDetailPage = {
                     <div style="flex: 1; padding-right: 10px;">
                         <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
                             <span style="font-size: 11px; color: var(--color-text-light); font-weight: 600;">第 ${u.unitNumber} 单元</span>
+                            ${u.isVerification ? `<span style="font-size: 11px; background: rgba(212,165,116,0.18); color: var(--color-accent); padding: 1px 6px; border-radius: 6px; font-weight: 600;">🏆 检验关</span>` : ''}
                             <span style="font-size: 11px; background: ${badgeBg}; color: ${badgeColor}; padding: 1px 6px; border-radius: 6px; font-weight: 600;">${badgeText}</span>
                         </div>
                         <div style="font-size: 15px; font-weight: bold; color: #332B25;">${u.title}</div>
@@ -112,7 +115,35 @@ window.SkillDetailPage = {
             `;
         });
 
+        const allUnitsDone = completedUnits.length >= skill.units.length;
+
         html += `
+                    </div>
+                </div>
+
+                <!-- 🏆 结业检验 -->
+                <div style="margin-top: 26px;">
+                    <h3 style="font-size: 16px; font-weight: bold; margin-bottom: 12px;">🏆 结业检验</h3>
+                    <div class="card" style="border: 1px solid ${isMastered ? '#B8E2CB' : 'var(--color-accent)'}; background: ${isMastered ? '#E8F5EE' : 'transparent'}; padding: 16px; border-radius: 14px;">
+                        ${isMastered ? `
+                            <div style="text-align: center;">
+                                <div style="font-size: 28px;">🏆</div>
+                                <div style="font-size: 16px; font-weight: bold; color: #286644; margin: 4px 0 2px 0;">已认定「精通」</div>
+                                <div style="font-size: 12px; color: #3C7A58;">${new Date(verification.verifiedAt).toLocaleDateString('zh-CN')} 通过结业检验</div>
+                                ${verification.evidence ? `<div style="margin-top: 10px; padding: 10px 12px; background: rgba(255,255,255,0.6); border-radius: 10px; font-size: 12px; color: #33604A; text-align: left; line-height: 1.6; white-space: pre-wrap;">${verification.evidence}</div>` : ''}
+                            </div>
+                        ` : `
+                            <div style="font-size: 12px; font-weight: bold; color: var(--color-accent); margin-bottom: 6px;">🎯 检验标准</div>
+                            <div style="font-size: 13px; color: var(--color-text); line-height: 1.6; margin-bottom: 12px;">${skill.verificationStandard}</div>
+                            <div style="font-size: 12px; color: var(--color-text-light); line-height: 1.6; margin-bottom: 14px; padding-top: 12px; border-top: 1px dashed var(--color-border);">
+                                ${allUnitsDone
+                                    ? '🎉 你已通关全部单元，可以提交结业检验了。'
+                                    : `通关全部 ${skill.units.length} 个单元后，即可提交结业检验（当前 ${completedUnits.length}/${skill.units.length}）。`}
+                            </div>
+                            <button id="btn-goto-verification" class="btn" style="background: ${allUnitsDone ? 'var(--color-accent)' : '#E0D8D0'}; color: ${allUnitsDone ? 'white' : '#777'}; border: none; padding: 11px; border-radius: 8px; font-size: 14px; width: 100%;">
+                                ${allUnitsDone ? '前往结业检验 →' : '查看检验关单元'}
+                            </button>
+                        `}
                     </div>
                 </div>
             </div>
@@ -136,5 +167,17 @@ window.SkillDetailPage = {
                 window.CiKeRouter.navigate(`unit-learning?skill=${skillId}&unit=${unitNum}`);
             });
         });
+
+        // 🏆 前往结业检验（跳转到检验关单元）
+        const btnVerify = container.querySelector('#btn-goto-verification');
+        if (btnVerify) {
+            btnVerify.addEventListener('click', () => {
+                const skills = window.CiKeSkillsData || [];
+                const skill = skills.find(s => s.id === skillId);
+                if (!skill) return;
+                const vUnit = (skill.units || []).find(u => u.isVerification) || skill.units[skill.units.length - 1];
+                window.CiKeRouter.navigate(`unit-learning?skill=${skillId}&unit=${vUnit.unitNumber}`);
+            });
+        }
     }
 };

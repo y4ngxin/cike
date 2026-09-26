@@ -32,31 +32,49 @@
 
 ## 💻 原型目录结构
 
-当前工作目录已包含快速验证可交互的原型代码：
+当前工作目录已包含可交互的运行原型（纯前端 SPA，零依赖、纯本地存储）：
 
 ```
-d:\project\zhaoxi\me\
+d:\project\zhaoxi\cike\
 ├── PRODUCT_DESIGN.md         # 📄 完整产品设计文档 v2
 ├── TECHNICAL_ARCHITECTURE.md # 📄 完整技术架构方案
 ├── README.md                 # 📄 项目索引说明
 ├── index.html                # 📱 SPA 原型入口
+├── manifest.json / sw.js     # 📦 PWA 离线安装与缓存
 ├── css/
-│   └── styles.css            # 🎨 温暖人文设计系统（纸张色、琥珀色、沉静蓝等）
+│   └── styles.css            # 🎨 温暖人文设计系统（纸张色、琥珀色、沉静蓝等）+ 暗夜深色模式
 └── js/
-    ├── store.js              # 💾 本地持久化层 (localStorage)
-    ├── router.js             # 🧭 路由系统 (支持视图生命周期 & 清理)
+    ├── skills-data.js        # 🏛️ 五艺内容源（5 技能 × 36 单元，含检验关标记）
+    ├── audio.js              # 🎧 Web Audio 白噪音合成引擎
+    ├── store.js              # 💾 本地持久化数据中心 + 🔍 自省洞察引擎 + 🏆 结业检验
+    ├── router.js             # 🧭 路由系统（支持视图生命周期 & 清理）
     ├── app.js                # 🚀 应用入口与装配层
     └── pages/
-        ├── home.js           # 🏠 首页（问候+今日一事+最近记录）
-        ├── morning-checkin.js# ☀️ 晨间三问
-        ├── evening-reflection.js # 🌙 晚间回顾
-        ├── mirror.js         # 🪞 记录流
-        ├── new-record.js     # ✏️ 快速记录（想法/行动/困惑）
-        ├── direction.js      # 🧭 北极星目标
-        ├── new-goal.js       # ⭐ 设定方向
-        ├── focus.js          # 🔥 专注面板
-        └── focus-timer.js    # ⏱️ 沉浸专注计时器
+        ├── home.js           # 🏠 首页（问候 + 今日一事 + 今日修炼 + 最近记录）
+        ├── morning-checkin.js / evening-reflection.js  # ☀️🌙 晨间三问 / 晚间回顾
+        ├── mirror.js         # 🪞 记录流（搜索 / 分类 / 编辑 / 自省入口）
+        ├── insight-report.js # 🪞 自省报告（周/月模式洞察，只帮"看见"）
+        ├── new-record.js     # ✏️ 快速记录（想法 / 行动 / 困惑）
+        ├── direction.js / goal-detail.js / new-goal.js  # 🧭 北极星目标与方向日记
+        ├── skills.js         # 🏛️ 五艺大厅（进度环 / 等级 / 解锁状态）
+        ├── skill-detail.js   # 📚 技能详情（方法论 / 单元路径 / 结业检验入口）
+        ├── unit-learning.js  # 🔄 单元修炼（知·观·行·省四步 + 🏆 结业检验提交）
+        ├── plan.js           # 📐 四象限计划看板
+        ├── focus.js / focus-timer.js  # 🔥 专注面板（含番茄钟卡片）/ 沉浸计时器（正向计时 + 🍅 番茄模式）
+        └── settings.js       # ⚙️ 设置与数据主权（导出 JSON / Markdown、导入、重置）
 ```
+
+### 已实现能力
+
+| 模块 | 能力 |
+|------|------|
+| 🪞 镜 · 记录 | 晨间三问、随时记录、晚间回顾、搜索与分类、**周/月自省报告**（本地规则引擎识别主题模式与情绪趋势，输出对齐架构文档的 AI 自省契约，可无缝替换为云端 LLM） |
+| 🧭 路 · 方向 | 北极星目标（最多 3 个）、方向日记、自动同步至「镜」 |
+| 📐 图 · 计划 | 艾森豪威尔四象限任务看板、设为今日一事 |
+| 🔥 炬 · 专注 | 向上计时沉浸界面、**番茄时钟（25/45/自定义 + 短休/长休循环，每轮自动落库）**、白噪音、走神速记、7 日专注统计 |
+| 🏛️ 修 · 五艺 | 5 技能 × 36 单元四步修炼、进度追踪、阶梯解锁、**结业检验 · 精通认定**（通关全部单元并通过检验关挑战后方可认定「精通」） |
+| ⚙️ 数据主权 | JSON 全量备份 / Markdown 日记导出（含五艺进度与精通认定）/ 导入恢复 / 一键清空 |
+
 
 ---
 

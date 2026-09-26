@@ -98,6 +98,15 @@
                         <p class="subtitle" style="color: var(--color-text-light); font-size: 14px; margin: 0;">诚实地面对自己，所有的成长都有迹可循</p>
                     </div>
 
+                    <!-- 🔍 自省报告入口：镜子的高阶能力——帮你看清模式 -->
+                    <button id="btn-mirror-insight" class="card" style="display: flex; align-items: center; justify-content: space-between; width: 100%; text-align: left; margin-bottom: 14px; padding: 14px; border-radius: 14px; border-left: 4px solid var(--color-focus); cursor: pointer;">
+                        <div>
+                            <div style="font-size: 15px; font-weight: bold; color: var(--color-text);">🔍 自省报告</div>
+                            <div style="font-size: 12px; color: var(--color-text-light); margin-top: 2px;">看看这一周的你，在反复想什么</div>
+                        </div>
+                        <span style="font-size: 18px; color: var(--color-accent);">→</span>
+                    </button>
+
                     <!-- 搜索框 -->
                     <div style="margin-bottom: 12px;">
                         <input type="text" id="mirror-search-input" value="${currentSearch}" placeholder="🔍 搜索记录与反思..." style="width: 100%; padding: 10px 14px; border-radius: 10px; border: 1px solid var(--color-border); font-size: 13px; margin-bottom: 0; box-sizing: border-box;">
@@ -132,6 +141,14 @@
             if (btnAdd) {
                 btnAdd.addEventListener('click', () => {
                     window.CiKeRouter.navigate('new-record');
+                });
+            }
+
+            // 自省报告
+            const btnInsight = container.querySelector('#btn-mirror-insight');
+            if (btnInsight) {
+                btnInsight.addEventListener('click', () => {
+                    window.CiKeRouter.navigate('insight-report');
                 });
             }
 

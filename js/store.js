@@ -315,6 +315,81 @@ window.CiKeStore = (function() {
         },
 
         // ==========================================
+        // 🍅 番茄时钟 Pomodoro
+        // 设置项：专注时长 / 短休 / 长休 / 几轮后长休
+        // ==========================================
+        getPomodoroSettings() {
+            const s = this.getSettings();
+            const p = s.pomodoro || {};
+            return {
+                workMinutes: p.workMinutes || 25,
+                shortBreak: p.shortBreak || 5,
+                longBreak: p.longBreak || 15,
+                roundsBeforeLongBreak: p.roundsBeforeLongBreak || 4
+            };
+        },
+        savePomodoroSettings(patch) {
+            const current = this.getPomodoroSettings();
+            const merged = { ...current, ...patch };
+            this.saveSettings({ pomodoro: merged });
+            return merged;
+        },
+        /** 判断某个专注会话是否属于番茄钟 */
+        _isPomodoroSession(s) {
+            return !!(s && s.isPomodoro);
+        },
+        /** 今日完成的番茄数 */
+        getTodayPomodoroCount() {
+            const todayStr = new Date().toDateString();
+            return this.getFocusSessions().filter(s =>
+                this._isPomodoroSession(s) && new Date(s.completedAt).toDateString() === todayStr
+            ).length;
+        },
+        /** 番茄钟总览统计 */
+        getPomodoroStats() {
+            const sessions = this.getFocusSessions().filter(s => this._isPomodoroSession(s));
+            const todayStr = new Date().toDateString();
+            const todayList = sessions.filter(s => new Date(s.completedAt).toDateString() === todayStr);
+            const sum = list => Math.round(list.reduce((t, s) => t + s.duration, 0) / 60);
+            const cfg = this.getPomodoroSettings();
+
+            return {
+                todayCount: todayList.length,
+                todayMinutes: sum(todayList),
+                totalCount: sessions.length,
+                totalMinutes: sum(sessions),
+                // 当前循环内已完成数（用于展示 4 个番茄一轮的进度点）
+                roundInCycle: todayList.length % cfg.roundsBeforeLongBreak,
+                roundsBeforeLongBreak: cfg.roundsBeforeLongBreak
+            };
+        },
+        /**
+         * 为已完成的专注会话补充心情与反思（番茄钟每轮自动落库后使用）
+         * 附带的反思会同步沉淀到「🪞 镜」
+         */
+        updateFocusSessionReflection(sessionId, reflection, mood) {
+            const sessions = this.getFocusSessions();
+            const session = sessions.find(s => s.id === sessionId);
+            if (!session) return null;
+
+            if (reflection && reflection.trim()) session.reflection = reflection.trim();
+            if (mood) session.mood = mood;
+            set('focus_sessions', sessions);
+
+            if (reflection && reflection.trim()) {
+                const mins = Math.round(session.duration / 60);
+                this.addRecord({
+                    type: 'action',
+                    content: `【🍅 番茄专注复盘 · ${session.task} (${mins}分钟)】\n${reflection.trim()}`,
+                    mood: mood || '🙂',
+                    sourceModule: 'focus',
+                    sourceRef: session.id
+                });
+            }
+            return session;
+        },
+
+        // ==========================================
         // 🏛️ 修 · 五艺底层技能进度
         // ==========================================
         getSkillsProgress() {
@@ -339,10 +414,14 @@ window.CiKeStore = (function() {
                 mood: ''
             };
         },
-        calculateLevel(completedCount, totalCount) {
+        /**
+         * 修炼等级换算
+         * 「精通」不是"做完了"，而是通关全部单元并通过结业检验（verified=true）
+         */
+        calculateLevel(completedCount, totalCount, verified = false) {
             if (completedCount === 0) return '初心';
             const ratio = completedCount / totalCount;
-            if (ratio >= 1) return '精通';
+            if (ratio >= 1) return verified ? '精通' : '通达';
             if (ratio >= 0.7) return '通达';
             if (ratio >= 0.4) return '进阶';
             return '入门';
@@ -436,6 +515,325 @@ window.CiKeStore = (function() {
         },
 
         // ==========================================
+        // 🏆 结业检验 · 精通认定 Verifications
+        // {verifiedAt, evidence, verified}
+        // ==========================================
+        getVerifications() {
+            return get('verifications', {});
+        },
+        getVerification(skillId) {
+            return this.getVerifications()[skillId] || null;
+        },
+        /**
+         * 提交结业检验，认定「精通」
+         * 通过后自动同步一条记录到「🪞 镜」，作为成长里程碑
+         */
+        saveVerification(skillId, data = {}) {
+            const all = this.getVerifications();
+            const isFirstTime = !all[skillId];
+            all[skillId] = {
+                ...(all[skillId] || {}),
+                evidence: data.evidence || '',
+                verified: true,
+                verifiedAt: Date.now()
+            };
+            set('verifications', all);
+
+            if (isFirstTime) {
+                const skills = window.CiKeSkillsData || [];
+                const skill = skills.find(s => s.id === skillId);
+                const skillTitle = skill ? skill.title : '五艺';
+                const icon = skill ? skill.icon : '🏛️';
+                this.addRecord({
+                    type: 'action',
+                    content: `【🏆 结业检验通过 · ${skillTitle}】\n依据检验标准「${skill ? skill.verificationStandard : ''}」，我完成了检验关挑战：\n${data.evidence || ''}`,
+                    mood: '🔥',
+                    sourceModule: 'skills_verification',
+                    sourceRef: skillId
+                });
+            }
+
+            return all[skillId];
+        },
+        /** 是否已认定精通：通关全部单元 + 通过结业检验 */
+        isSkillMastered(skillId) {
+            const skills = window.CiKeSkillsData || [];
+            const skill = skills.find(s => s.id === skillId);
+            if (!skill) return false;
+            const prog = this.getSkillProgress(skillId);
+            const allUnitsDone = (prog.completedUnits || []).length >= skill.units.length;
+            return allUnitsDone && !!this.getVerification(skillId);
+        },
+
+        // ==========================================
+        // 🔍 自省洞察引擎 Insight Engine
+        // 本地规则引擎：只帮用户"看见"模式，不给建议、不做评判
+        // 输出结构对齐技术架构文档《AI 自省报告》数据契约，未来可无缝替换为云端 LLM
+        // ==========================================
+
+        // 主题词索引（用于模式识别）
+        _insightThemes: {
+            '职业方向': ['职业', '工作', '事业', '方向', '转行', '跳槽', '行业', '岗位', '创业', '项目'],
+            '时间管理': ['时间', '忙', '计划', '拖延', '效率', '安排', 'deadline', '来不及'],
+            '学习成长': ['学习', '知识', '技能', '读书', '课程', '成长', '提升', '修炼', '练习'],
+            '情绪状态': ['焦虑', '情绪', '压力', '烦', '累', '开心', '难过', '平静', '迷茫', '内耗'],
+            '人际关系': ['朋友', '家人', '同事', '关系', '沟通', '社交', '父母', '孩子', '伴侣'],
+            '金钱财务': ['钱', '收入', '支出', '存钱', '投资', '财务', '预算', '花销'],
+            '身心健康': ['健康', '运动', '睡眠', '锻炼', '身体', '作息', '跑步', '休息']
+        },
+
+        // 情绪表情 → 语义（用于趋势描述）
+        _insightMoodMap: {
+            '😤': { label: '烦躁', tone: -2 },
+            '😐': { label: '平静', tone: 0 },
+            '🙂': { label: '平稳', tone: 1 },
+            '😊': { label: '愉悦', tone: 2 },
+            '🔥': { label: '高能', tone: 2 }
+        },
+
+        /** 抽取指定时间窗内的原始数据（offsetDays 用于取上一周期做对比） */
+        _gatherPeriodData(days, offsetDays = 0) {
+            const end = Date.now() - offsetDays * 86400000;
+            const start = end - days * 86400000;
+            const inRange = ts => ts >= start && ts < end;
+            return {
+                start,
+                end,
+                records: this.getRecords().filter(r => inRange(r.createdAt)),
+                checkins: this.getCheckins().filter(c => inRange(c.createdAt)),
+                sessions: this.getFocusSessions().filter(s => inRange(s.completedAt))
+            };
+        },
+
+        /**
+         * 生成自省报告
+         * @param {'week'|'month'} period
+         * @returns 对齐架构文档契约的结构化洞察
+         */
+        generateInsightReport(period = 'week') {
+            const days = period === 'month' ? 30 : 7;
+            const curData = this._gatherPeriodData(days, 0);
+            const prevData = this._gatherPeriodData(days, days);
+
+            const fmt = ts => {
+                const d = new Date(ts);
+                return `${d.getMonth() + 1}月${d.getDate()}日`;
+            };
+            const periodLabel = `${fmt(curData.start)} ~ ${fmt(curData.end - 1)}`;
+
+            const records = curData.records;
+            const sessions = curData.sessions;
+
+            // ---- 1. 主题识别 ----
+            const themeCounts = [];
+            Object.keys(this._insightThemes).forEach(name => {
+                const kws = this._insightThemes[name];
+                let count = 0;
+                const hits = [];
+                records.forEach(r => {
+                    const text = r.content || '';
+                    if (kws.some(k => text.includes(k))) {
+                        count++;
+                        hits.push(r);
+                    }
+                });
+                if (count > 0) themeCounts.push({ name, count, hits });
+            });
+            themeCounts.sort((a, b) => b.count - a.count);
+
+            // ---- 2. 情绪趋势 ----
+            const moodCounts = {};
+            const moodByDay = {};
+            records.forEach(r => {
+                if (!r.mood) return;
+                moodCounts[r.mood] = (moodCounts[r.mood] || 0) + 1;
+                const day = new Date(r.createdAt).toDateString();
+                if (!moodByDay[day]) moodByDay[day] = {};
+                moodByDay[day][r.mood] = (moodByDay[day][r.mood] || 0) + 1;
+            });
+
+            let topMood = null;
+            let topMoodCount = 0;
+            Object.keys(moodCounts).forEach(m => {
+                if (moodCounts[m] > topMoodCount) {
+                    topMood = m;
+                    topMoodCount = moodCounts[m];
+                }
+            });
+
+            // 找出情绪最沉与最有能量的一天
+            let lowDay = null, lowScore = Infinity;
+            let highDay = null, highScore = -Infinity;
+            Object.keys(moodByDay).forEach(day => {
+                let score = 0, total = 0;
+                Object.keys(moodByDay[day]).forEach(m => {
+                    const meta = this._insightMoodMap[m];
+                    score += (meta ? meta.tone : 0) * moodByDay[day][m];
+                    total += moodByDay[day][m];
+                });
+                const avg = total > 0 ? score / total : 0;
+                if (avg < lowScore) { lowScore = avg; lowDay = day; }
+                if (avg > highScore) { highScore = avg; highDay = day; }
+            });
+            const dayLabel = dayStr => {
+                const d = new Date(dayStr);
+                const names = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+                return `${d.getMonth() + 1}月${d.getDate()}日 ${names[d.getDay()]}`;
+            };
+
+            // ---- 3. 专注统计 ----
+            const focusMinutes = Math.round(sessions.reduce((s, x) => s + x.duration, 0) / 60);
+            const prevFocusMinutes = Math.round(prevData.sessions.reduce((s, x) => s + x.duration, 0) / 60);
+
+            // 专注序列：本周按天，本月按周聚合
+            const focusSeries = [];
+            if (period === 'week') {
+                const dayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+                for (let i = 6; i >= 0; i--) {
+                    const d = new Date();
+                    d.setDate(d.getDate() - i);
+                    const ds = d.toDateString();
+                    const mins = Math.round(sessions.filter(s => new Date(s.completedAt).toDateString() === ds)
+                        .reduce((sum, s) => sum + s.duration, 0) / 60);
+                    focusSeries.push({ label: i === 0 ? '今天' : dayNames[d.getDay()], minutes: mins });
+                }
+            } else {
+                for (let w = 3; w >= 0; w--) {
+                    const end = Date.now() - w * 7 * 86400000;
+                    const start = end - 7 * 86400000;
+                    const mins = Math.round(sessions.filter(s => s.completedAt >= start && s.completedAt < end)
+                        .reduce((sum, s) => sum + s.duration, 0) / 60);
+                    focusSeries.push({ label: w === 0 ? '本周' : `前${w}周`, minutes: mins });
+                }
+            }
+
+            // ---- 4. 修炼投入 ----
+            const skillReflections = records.filter(r => r.sourceModule === 'skills');
+            const skillTally = {};
+            skillReflections.forEach(r => {
+                const sid = (r.sourceRef || '').split(':')[0];
+                if (sid) skillTally[sid] = (skillTally[sid] || 0) + 1;
+            });
+            const skills = window.CiKeSkillsData || [];
+            let topSkill = null, topSkillCount = 0;
+            Object.keys(skillTally).forEach(sid => {
+                if (skillTally[sid] > topSkillCount) { topSkillCount = skillTally[sid]; topSkill = sid; }
+            });
+
+            // ---- 5. 签到 ----
+            const morningCount = curData.checkins.filter(c => c.type === 'morning').length;
+            const eveningCount = curData.checkins.filter(c => c.type === 'evening').length;
+
+            // ---- 组装 patterns（只陈述观察，不给建议）----
+            const patterns = [];
+            const prevCount = prevData.records.length;
+            if (records.length > 0) {
+                let base = `这${period === 'month' ? '个月' : '周'}你写下了 ${records.length} 条记录`;
+                if (prevCount > 0) {
+                    const diff = records.length - prevCount;
+                    if (diff > 0) base += `，比上${period === 'month' ? '个' : ''}周期多了 ${diff} 条`;
+                    else if (diff < 0) base += `，比上${period === 'month' ? '个' : ''}周期少了 ${Math.abs(diff)} 条`;
+                    else base += `，与上${period === 'month' ? '个' : ''}周期持平`;
+                }
+                patterns.push(base + '。');
+            }
+            if (themeCounts.length > 0) {
+                const t = themeCounts[0];
+                patterns.push(`其中 ${t.count} 条和「${t.name}」相关——看起来这是你近期最在意的部分。`);
+                if (themeCounts[1] && themeCounts[1].count >= 2) {
+                    patterns.push(`「${themeCounts[1].name}」出现了 ${themeCounts[1].count} 次，它是另一条反复浮现的线索。`);
+                }
+            }
+            const confusionCount = records.filter(r => r.type === 'confusion').length;
+            if (confusionCount >= 2) {
+                patterns.push(`你记录了 ${confusionCount} 次困惑。困惑不是问题，它是思考正在发生的证据。`);
+            }
+            if (skillReflections.length > 0) {
+                const topSkillName = topSkill ? (skills.find(s => s.id === topSkill) || {}).title : '';
+                patterns.push(`这一${period === 'month' ? '个月' : '周'}你在五艺里沉淀了 ${skillReflections.length} 次反思${topSkillName ? `，「${topSkillName}」占了 ${topSkillCount} 次` : ''}。`);
+            }
+
+            // ---- 情绪趋势描述 ----
+            let moodTrend = '';
+            if (topMood) {
+                moodTrend = `出现最多的心情是 ${topMood}（${this._insightMoodMap[topMood] ? this._insightMoodMap[topMood].label : ''}），共 ${topMoodCount} 次。`;
+                if (lowDay && highDay && lowDay !== highDay) {
+                    moodTrend += ` ${dayLabel(lowDay)}的气压最低，而${dayLabel(highDay)}是你状态最好的一天——注意到了吗？`;
+                }
+            } else {
+                moodTrend = '这一周期还没有记录心情，下次记录时顺手点一下表情，就能看见情绪起伏的轨迹。';
+            }
+
+            // ---- 修炼洞察 ----
+            let skillInsight = '';
+            const totalDone = skills.reduce((sum, s) => sum + (this.getSkillProgress(s.id).completedUnits || []).length, 0);
+            if (skills.length > 0) {
+                const active = skills.map(s => ({
+                    title: s.title,
+                    done: (this.getSkillProgress(s.id).completedUnits || []).length,
+                    total: s.units.length
+                })).filter(x => x.done > 0);
+                if (active.length > 0) {
+                    const first = active[0];
+                    skillInsight = `五艺上你已累计通关 ${totalDone} 个单元。${first.title}推进到 ${first.done}/${first.total}。`;
+                    const untouched = skills.filter(s => (this.getSkillProgress(s.id).completedUnits || []).length === 0 && this.isSkillUnlocked(s.id));
+                    if (untouched.length > 0) {
+                        skillInsight += ` 而「${untouched[0].title}」还没有开始——是时候了吗？`;
+                    }
+                } else {
+                    skillInsight = '五艺之门已经打开，但还没有迈出第一步。哪一项最贴近你此刻的困境？';
+                }
+            }
+
+            // ---- 专注总结 ----
+            let focusSummary = '';
+            if (sessions.length > 0) {
+                focusSummary = `这一周期你完成了 ${sessions.length} 次专注，累计 ${focusMinutes} 分钟（约 ${(focusMinutes / 60).toFixed(1)} 小时）。`;
+                if (prevFocusMinutes > 0) {
+                    const diff = focusMinutes - prevFocusMinutes;
+                    if (diff > 0) focusSummary += ` 比上一周期多了 ${diff} 分钟，这份耐心在累积。`;
+                    else if (diff < 0) focusSummary += ` 比上一周期少了 ${Math.abs(diff)} 分钟。`;
+                }
+            } else {
+                focusSummary = '这一周期没有专注记录。注意力去哪了？这个问题值得你自己回答。';
+            }
+
+            // ---- 引用用户原文（增加共鸣感）----
+            let quote = '';
+            if (themeCounts.length > 0 && themeCounts[0].hits.length > 0) {
+                const src = themeCounts[0].hits[0].content || '';
+                const clean = src.replace(/【[^】]*】/g, '').trim().split('\n').filter(l => l.trim())[0] || '';
+                quote = clean.length > 60 ? clean.substring(0, 60) + '…' : clean;
+            }
+
+            const hasData = records.length > 0 || sessions.length > 0 || curData.checkins.length > 0;
+
+            return {
+                period,
+                days,
+                periodLabel,
+                hasData,
+                recordCount: records.length,
+                prevRecordCount: prevCount,
+                focusMinutes,
+                prevFocusMinutes,
+                focusSessionCount: sessions.length,
+                morningCount,
+                eveningCount,
+                themes: themeCounts.map(t => ({ name: t.name, count: t.count })),
+                moodCounts,
+                topMood,
+                focusSeries,
+                skillReflections: skillReflections.length,
+                patterns,
+                moodTrend,
+                skillInsight,
+                focusSummary,
+                quote
+            };
+        },
+
+        // ==========================================
         // 💾 数据主权：全量导出与导入
         // ==========================================
         exportDataJSON() {
@@ -489,6 +887,30 @@ window.CiKeStore = (function() {
                 md += `- **${s.task}**：时长 ${Math.round(s.duration / 60)} 分钟 | ${new Date(s.completedAt).toLocaleString('zh-CN')}\n`;
                 if (s.reflection) md += `  > ${s.reflection}\n`;
             });
+
+            // 🏛️ 五艺修炼进度与精通认定
+            const skills = window.CiKeSkillsData || [];
+            if (skills.length) {
+                md += `\n## 🏛️ 五艺修炼进度\n\n`;
+                skills.forEach(sk => {
+                    const prog = this.getSkillProgress(sk.id);
+                    const done = (prog.completedUnits || []).length;
+                    const level = this.calculateLevel(done, sk.units.length, this.isSkillMastered(sk.id));
+                    md += `### ${sk.icon} ${sk.title} · ${level} (${done}/${sk.units.length} 单元)\n`;
+                    md += `- 核心原理：${sk.corePrinciple}\n`;
+                    (sk.units || []).forEach(u => {
+                        const up = (prog.units && prog.units[u.unitNumber]) || {};
+                        const steps = ['know', 'observe', 'practice', 'reflect'].filter(k => up[k]).length;
+                        md += `  - 单元${u.unitNumber} ${u.title}：${steps}/4 步\n`;
+                        if (up.reflectionText) md += `    > ${up.reflectionText}\n`;
+                    });
+                    const v = this.getVerification(sk.id);
+                    if (v && v.verified) {
+                        md += `- 🏆 **已通过结业检验**（${new Date(v.verifiedAt).toLocaleDateString('zh-CN')}）：${v.evidence}\n`;
+                    }
+                    md += `\n`;
+                });
+            }
 
             return md;
         },

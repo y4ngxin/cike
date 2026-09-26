@@ -137,10 +137,39 @@ window.CiKeAudio = (function() {
         }
     }
 
+    /**
+     * 番茄钟完成提示音（纯算法合成，零音频资源）
+     * @param {'focus-done'|'break-done'} kind 阶段类型
+     */
+    function chime(kind = 'focus-done') {
+        initContext();
+        if (!audioCtx) return;
+
+        const now = audioCtx.currentTime;
+        // 专注结束：上行三音（明亮、收获感）；休息结束：温和双音（唤醒感）
+        const notes = kind === 'break-done' ? [659.25, 987.77] : [523.25, 659.25, 783.99];
+
+        notes.forEach((freq, i) => {
+            const startAt = now + i * 0.18;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, startAt);
+            gain.gain.setValueAtTime(0.0001, startAt);
+            gain.gain.linearRampToValueAtTime(0.22, startAt + 0.03);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startAt + 1.1);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(startAt);
+            osc.stop(startAt + 1.2);
+        });
+    }
+
     return {
         play,
         stop,
         setVolume,
+        chime,
         getCurrentType: () => currentType,
         isPlaying: () => isPlaying
     };

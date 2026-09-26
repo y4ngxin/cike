@@ -1,0 +1,9 @@
+# 编辑器 / 系统
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# AI 工作区记忆与临时文件（不纳入版本库）
+.workbuddy/
+.tmp-*

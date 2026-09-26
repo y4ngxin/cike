@@ -20,6 +20,7 @@ window.CiKeRouter = (function() {
         'morning-checkin':    { pageId: 'page-morning-checkin',    hideNav: true,  renderer: null },
         'evening-reflection': { pageId: 'page-evening-reflection', hideNav: true,  renderer: null },
         'new-record':         { pageId: 'page-new-record',         hideNav: true,  renderer: null },
+        'insight-report':     { pageId: 'page-insight-report',     hideNav: true,  renderer: null },
         'goal-detail':        { pageId: 'page-goal-detail',        hideNav: true,  renderer: null },
         'new-goal':           { pageId: 'page-new-goal',           hideNav: true,  renderer: null },
         'focus-timer':        { pageId: 'page-focus-timer',        hideNav: true,  renderer: null },

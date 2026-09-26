@@ -166,6 +166,7 @@ window.CiKeSkillsData = [
             {
                 unitNumber: 7,
                 title: "元学习综合检验关",
+                isVerification: true,
                 know: {
                     title: "掌握‘如何学习’的终极自由",
                     content: "检验元学习水平的唯一金标准：面对一个全然陌生复杂的领域，你能否在短时间内不慌乱，依靠‘搭骨架→找核心→费曼输出→刻意攻坚’在数天内建立起系统认知并付诸实践。"
@@ -368,6 +369,7 @@ window.CiKeSkillsData = [
             {
                 unitNumber: 8,
                 title: "沟通表达综合检验关",
+                isVerification: true,
                 know: {
                     title: "做一名清晰、坚定且温暖的沟通者",
                     content: "最高级的沟通不是言辞华丽，而是在最具争议或压力的环境下，依然能保持心平气和、逻辑井然，让每一个与你对话的人都感受到被尊重、被倾听，同时清晰知晓你的边界与诉求。"
@@ -553,6 +555,7 @@ window.CiKeSkillsData = [
             {
                 unitNumber: 7,
                 title: "财务认知综合检验关",
+                isVerification: true,
                 know: {
                     title: "走向真正的财务主权与内心从容",
                     content: "财务自由的最高境界不是肆意挥霍，而是拥有对时间的绝对选择权——你不再因为下个月要还卡债，而不得不忍受恶劣的工作环境或不公的待遇。"
@@ -738,6 +741,7 @@ window.CiKeSkillsData = [
             {
                 unitNumber: 7,
                 title: "情绪调节综合检验关",
+                isVerification: true,
                 know: {
                     title: "拥有自己的情绪主权与定海神针",
                     content: "情绪调节的最终目标不是成为一个毫无喜怒哀乐的冷酷木头，而是拥有一颗**弹性而深邃的心**——你能热烈地去爱、去感知生活的一切丰富色彩，但在暴风雨来临时，内心深处永远有一处安宁的锚点。"
@@ -923,6 +927,7 @@ window.CiKeSkillsData = [
             {
                 unitNumber: 7,
                 title: "自律与时间管理综合检验关",
+                isVerification: true,
                 know: {
                     title: "成为自主、自由且幸福的人",
                     content: "自律的终极意义，从来不是把自己逼成一台冷酷精密的齿轮机器，而是让你拥有把控人生方向舵的力量——**不被低级多巴胺奴役，不被虚假的紧急裹挟，把最珍贵的时间和深情，留给真正值得的人与事。**"

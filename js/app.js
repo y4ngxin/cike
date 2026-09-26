@@ -59,6 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.CiKeEveningReflection) router.register('evening-reflection', wrapSelfContainedRenderer(window.CiKeEveningReflection));
     if (window.CiKeMirror) router.register('mirror', wrapSelfContainedRenderer(window.CiKeMirror));
     if (window.CiKeNewRecord) router.register('new-record', wrapSelfContainedRenderer(window.CiKeNewRecord));
+    if (window.CiKeInsightReport) router.register('insight-report', wrapSelfContainedRenderer(window.CiKeInsightReport));
 
     // 🧭 路 · 方向模块
     if (window.DirectionPage) router.register('direction', window.DirectionPage);

@@ -16,6 +16,50 @@ window.UnitLearningPage = {
         const unitProg = store.getUnitProgress(skill.id, unit.unitNumber);
         const isAllDone = unitProg.know && unitProg.observe && unitProg.practice && unitProg.reflect;
 
+        // 🏆 结业检验关：只有通关全部四步后才可提交检验，通过后认定「精通」
+        const isVerificationUnit = !!unit.isVerification;
+        const verification = isVerificationUnit ? store.getVerification(skill.id) : null;
+        const isVerified = !!(verification && verification.verified);
+
+        // 结业检验区的三种状态：已精通 / 可提交 / 尚未通关
+        let verificationPanel = '';
+        if (isVerificationUnit) {
+            if (isVerified) {
+                verificationPanel = `
+                    <div class="card" style="background: #E8F5EE; border: 1px solid #B8E2CB; border-radius: 14px; padding: 18px; margin-bottom: 24px; text-align: center;">
+                        <div style="font-size: 30px;">🏆</div>
+                        <div style="font-size: 17px; font-weight: bold; color: #286644; margin: 6px 0 4px 0;">已认定「精通」</div>
+                        <div style="font-size: 12px; color: #3C7A58;">认证时间：${new Date(verification.verifiedAt).toLocaleString('zh-CN')}</div>
+                        ${verification.evidence ? `<div style="margin-top: 12px; padding: 10px 12px; background: rgba(255,255,255,0.65); border-radius: 10px; font-size: 13px; color: #33604A; text-align: left; line-height: 1.6; white-space: pre-wrap;">${verification.evidence}</div>` : ''}
+                    </div>
+                `;
+            } else if (isAllDone) {
+                verificationPanel = `
+                    <div class="card" style="border: 1px solid var(--color-accent); border-radius: 14px; padding: 18px; margin-bottom: 24px;">
+                        <h3 style="font-size: 16px; font-weight: bold; margin: 0 0 6px 0;">🏆 提交结业检验</h3>
+                        <p style="font-size: 12px; color: var(--color-text-light); line-height: 1.6; margin: 0 0 12px 0;">
+                            精通不是「做完了」，而是通过检验标准。写下你完成检验关挑战的真实实证。
+                        </p>
+                        <textarea id="verify-evidence" style="width: 100%; border: 1px solid var(--color-border); border-radius: 8px; padding: 10px; font-family: inherit; font-size: 14px; min-height: 100px; resize: none; box-sizing: border-box;" placeholder="举例：我选了一个完全陌生的领域，1小时搭好骨架，录了5分钟讲解发给朋友，对方能复述出核心逻辑……">${verification ? verification.evidence : ''}</textarea>
+                        <label style="display: flex; align-items: flex-start; gap: 8px; margin: 12px 0; font-size: 13px; color: var(--color-text); line-height: 1.5; cursor: pointer;">
+                            <input type="checkbox" id="verify-confirm" style="margin-top: 3px; width: 16px; height: 16px; flex: none;">
+                            <span>我确认已完成上述检验关挑战，并达到「${skill.verificationStandard}」</span>
+                        </label>
+                        <button id="btn-submit-verify" class="btn" style="background: var(--color-accent); color: white; border: none; padding: 12px; font-size: 15px; font-weight: bold; border-radius: 8px; width: 100%;">
+                            提交检验 · 认定精通
+                        </button>
+                    </div>
+                `;
+            } else {
+                verificationPanel = `
+                    <div class="card" style="background: transparent; border: 1px dashed var(--color-border); border-radius: 14px; padding: 16px; margin-bottom: 24px; text-align: center;">
+                        <div style="font-size: 22px; margin-bottom: 6px;">🔒</div>
+                        <div style="font-size: 13px; color: var(--color-text-light); line-height: 1.6;">完成上方「知 · 观 · 行 · 省」四步后<br>即可提交结业检验，认定「精通」</div>
+                    </div>
+                `;
+            }
+        }
+
         let html = `
             <div class="unit-learning-container" style="max-width: 430px; margin: 0 auto; color: var(--color-text); padding-bottom: 50px;">
                 <!-- 顶部导航 -->
@@ -28,8 +72,21 @@ window.UnitLearningPage = {
                 <div style="margin-bottom: 20px;">
                     <div style="font-size: 12px; color: ${skill.color}; font-weight: bold; margin-bottom: 4px;">${skill.icon} ${skill.title} · 第 ${unit.unitNumber} 单元</div>
                     <h2 style="font-size: 20px; font-weight: bold; margin: 0 0 6px 0;">${unit.title}</h2>
-                    <p style="font-size: 13px; color: var(--color-text-light); margin: 0;">遵循认知闭环，练出来的才是自己的底层能力。</p>
+                    <p style="font-size: 13px; color: var(--color-text-light); margin: 0;">${isVerificationUnit ? '通关四步之后，用一次真实的检验为标准背书。' : '遵循认知闭环，练出来的才是自己的底层能力。'}</p>
                 </div>
+
+                ${isVerificationUnit ? `
+                    <div class="card" style="background: linear-gradient(135deg, rgba(212,165,116,0.16) 0%, rgba(139,111,111,0.12) 100%); border: 1px solid var(--color-accent); border-radius: 14px; padding: 14px 16px; margin-bottom: 18px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 6px;">
+                            <span style="font-size: 20px;">🏆</span>
+                            <span style="font-size: 15px; font-weight: bold; color: var(--color-text);">结业检验关</span>
+                            ${isVerified ? `<span style="font-size: 11px; background: #E8F5EE; color: #286644; padding: 2px 8px; border-radius: 10px; font-weight: 600;">已认定精通</span>` : ''}
+                        </div>
+                        <div style="font-size: 12px; color: var(--color-text-light); line-height: 1.6;">
+                            <strong style="color: var(--color-text);">检验标准：</strong>${skill.verificationStandard}
+                        </div>
+                    </div>
+                ` : ''}
 
                 ${isAllDone ? `
                     <div class="card" style="background: #E8F5EE; border: 1px solid #B8E2CB; border-radius: 12px; padding: 14px; margin-bottom: 20px; text-align: center;">
@@ -144,6 +201,8 @@ window.UnitLearningPage = {
                     </button>
                 </div>
 
+                ${verificationPanel}
+
                 <!-- 下一步跳转按钮 -->
                 <div style="display: flex; gap: 12px;">
                     <button id="btn-finish-return" class="btn btn-secondary" style="flex: 1; padding: 12px;">返回技能列表</button>
@@ -224,6 +283,27 @@ window.UnitLearningPage = {
                 });
 
                 alert('反思已保存，并已同步沉淀至你的「🪞 镜 · 记录」！');
+                this.render(container, { skill: skillId, unit: unitNumber });
+            });
+        }
+
+        // 🏆 提交结业检验 · 认定精通
+        const btnVerify = container.querySelector('#btn-submit-verify');
+        if (btnVerify) {
+            btnVerify.addEventListener('click', () => {
+                const evidenceEl = container.querySelector('#verify-evidence');
+                const confirmEl = container.querySelector('#verify-confirm');
+                const evidence = evidenceEl ? evidenceEl.value.trim() : '';
+                if (!evidence) {
+                    alert('请写下你的检验实证——这是认定「精通」的唯一依据。');
+                    return;
+                }
+                if (confirmEl && !confirmEl.checked) {
+                    alert('请先确认你已达到该技能的检验标准。');
+                    return;
+                }
+                store.saveVerification(skillId, { evidence });
+                alert('🏆 恭喜通过结业检验，该技能等级已认定「精通」。这份里程碑已同步沉淀至你的「🪞 镜」。');
                 this.render(container, { skill: skillId, unit: unitNumber });
             });
         }

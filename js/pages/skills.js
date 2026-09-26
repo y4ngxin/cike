@@ -51,7 +51,8 @@ window.SkillsPage = {
             const completedCount = (prog.completedUnits || []).length;
             const unitTotal = skill.units.length;
             const percent = Math.round((completedCount / unitTotal) * 100);
-            const level = store.calculateLevel(completedCount, unitTotal);
+            const isMastered = store.isSkillMastered(skill.id);
+            const level = store.calculateLevel(completedCount, unitTotal, isMastered);
 
             if (isUnlocked) {
                 html += `
@@ -62,7 +63,7 @@ window.SkillsPage = {
                                 <div>
                                     <div style="display: flex; align-items: center; gap: 8px;">
                                         <h3 style="margin: 0; font-size: 18px; font-weight: bold;">${skill.title}</h3>
-                                        <span style="font-size: 11px; background: rgba(0,0,0,0.05); padding: 2px 8px; border-radius: 12px; color: ${skill.color}; font-weight: 600;">${level}</span>
+                                        <span style="font-size: 11px; background: rgba(0,0,0,0.05); padding: 2px 8px; border-radius: 12px; color: ${skill.color}; font-weight: 600;">${isMastered ? '🏆 ' : ''}${level}</span>
                                     </div>
                                     <p style="margin: 2px 0 0 0; font-size: 13px; color: var(--color-text-light);">${skill.subtitle}</p>
                                 </div>

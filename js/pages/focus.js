@@ -1,10 +1,14 @@
 // 🔥 炬 · 专注 模块 (Focus Page)
 window.FocusPage = {
+    selectedPomoMinutes: 25, // 番茄钟时长选择（默认经典 25 分钟）
+
     render: function(container) {
         const store = window.CiKeStore;
         const todayFocus = store.getTodayFocus();
         const sessions = store.getFocusSessions();
         const stats7Days = store.getLast7DaysFocusStats();
+        const pomo = store.getPomodoroStats();
+        const pomoCfg = store.getPomodoroSettings();
         
         const todayStr = new Date().toDateString();
         const todaySessions = sessions.filter(s => new Date(s.completedAt).toDateString() === todayStr);
@@ -42,10 +46,52 @@ window.FocusPage = {
             `;
         }
 
-        // 7天专注趋势柱状图
+        // 🍅 番茄时钟卡片
+        let roundDots = '';
+        for (let i = 0; i < pomoCfg.roundsBeforeLongBreak; i++) {
+            roundDots += `<span style="width: 9px; height: 9px; border-radius: 50%; display: inline-block; background: ${i < pomo.roundInCycle ? '#D9584A' : 'var(--color-border)'};"></span>`;
+        }
+        const pomoDurations = [
+            { min: 25, label: '25 分' },
+            { min: 45, label: '45 分' },
+            { min: 0, label: '自定义' }
+        ];
+        const pomoChips = pomoDurations.map(d => {
+            const isActive = d.min === this.selectedPomoMinutes;
+            return `<button class="pomo-dur-chip" data-min="${d.min}" style="flex: 1; padding: 8px 4px; border-radius: 10px; font-size: 12px; font-weight: 600; cursor: pointer; border: 1px solid ${isActive ? '#D9584A' : 'var(--color-border)'}; background: ${isActive ? 'rgba(217,88,74,0.1)' : 'transparent'}; color: ${isActive ? '#D9584A' : 'var(--color-text-light)'};">${d.label}</button>`;
+        }).join('');
+
         html += `
             </div>
-            
+
+            <!-- 🍅 番茄时钟 -->
+            <div class="card pomodoro-card" style="padding: 18px; margin-bottom: 18px; border-left: 4px solid #D9584A;">
+                <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 8px;">
+                    <span style="font-size: 15px; font-weight: bold;">🍅 番茄时钟</span>
+                    <button id="btn-pomo-config" style="background: none; border: none; color: var(--color-text-light); font-size: 12px; cursor: pointer; padding: 2px;">⚙️ 参数</button>
+                </div>
+
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                    <div>
+                        <span style="font-size: 28px; font-weight: bold; color: #D9584A;">${pomo.todayCount}</span>
+                        <span style="font-size: 13px; color: var(--color-text-light);"> 个番茄 · 累计 ${pomo.todayMinutes} 分钟</span>
+                    </div>
+                    <div style="display: flex; gap: 5px; align-items: center; flex: none;">${roundDots}</div>
+                </div>
+
+                <div style="font-size: 12px; color: var(--color-text-light); line-height: 1.6; background: rgba(217,88,74,0.07); padding: 8px 10px; border-radius: 8px; margin-bottom: 12px;">
+                    ${pomoCfg.workMinutes} 分钟专注 + ${pomoCfg.shortBreak} 分钟短休，每 ${pomoCfg.roundsBeforeLongBreak} 轮长休 ${pomoCfg.longBreak} 分钟。<br>
+                    每完成一个番茄自动记入专注历程，结束时可写复盘同步到「🪞 镜」。
+                </div>
+
+                <div style="display: flex; gap: 8px; margin-bottom: 12px;">${pomoChips}</div>
+
+                <button id="btn-start-pomodoro" class="btn" style="width: 100%; background: #D9584A; color: white; border: none; padding: 13px; border-radius: 12px; font-size: 15px; font-weight: 600;">🍅 开始番茄钟</button>
+                <div style="font-size: 11px; color: var(--color-text-light); margin-top: 8px; text-align: center;">
+                    更习惯不限时的沉浸？<a href="#focus-timer" style="color: var(--color-accent); text-decoration: none;">开启正向计时 →</a>
+                </div>
+            </div>
+
             <div class="card" style="padding: 16px; margin-bottom: 18px;">
                 <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 12px;">
                     <span style="font-size: 15px; font-weight: bold;">📊 近 7 日专注节奏</span>
@@ -124,6 +170,66 @@ window.FocusPage = {
                     window.CiKeStore.setTodayFocus({ task: task.trim() });
                     this.render(container);
                 }
+            });
+        }
+
+        // 🍅 番茄钟时长选择
+        container.querySelectorAll('.pomo-dur-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const min = parseInt(chip.getAttribute('data-min'), 10);
+                if (min === 0) {
+                    const input = prompt('自定义番茄专注时长（1 - 180 分钟）：', this.selectedPomoMinutes);
+                    if (input === null) return;
+                    const val = parseInt(input, 10);
+                    if (!val || val < 1 || val > 180) {
+                        alert('请输入 1 - 180 之间的整数。');
+                        return;
+                    }
+                    this.selectedPomoMinutes = val;
+                } else {
+                    this.selectedPomoMinutes = min;
+                }
+                this.render(container);
+            });
+        });
+
+        // 🍅 开始番茄钟
+        const btnPomo = container.querySelector('#btn-start-pomodoro');
+        if (btnPomo) {
+            btnPomo.addEventListener('click', () => {
+                window.CiKeRouter.navigate(`focus-timer?mode=pomodoro&duration=${this.selectedPomoMinutes}`);
+            });
+        }
+
+        // ⚙️ 番茄钟参数
+        const btnConfig = container.querySelector('#btn-pomo-config');
+        if (btnConfig) {
+            btnConfig.addEventListener('click', () => {
+                const store = window.CiKeStore;
+                const cur = store.getPomodoroSettings();
+
+                const work = prompt('每个番茄的专注时长（分钟）：', cur.workMinutes);
+                if (work === null) return;
+                const short = prompt('短休息时长（分钟）：', cur.shortBreak);
+                if (short === null) return;
+                const long = prompt('长休息时长（分钟）：', cur.longBreak);
+                if (long === null) return;
+                const rounds = prompt('每几轮番茄后进入长休息：', cur.roundsBeforeLongBreak);
+                if (rounds === null) return;
+
+                const clamp = (v, def, min, max) => {
+                    const n = parseInt(v, 10);
+                    if (isNaN(n) || n < min || n > max) return def;
+                    return n;
+                };
+                store.savePomodoroSettings({
+                    workMinutes: clamp(work, cur.workMinutes, 1, 180),
+                    shortBreak: clamp(short, cur.shortBreak, 1, 60),
+                    longBreak: clamp(long, cur.longBreak, 1, 120),
+                    roundsBeforeLongBreak: clamp(rounds, cur.roundsBeforeLongBreak, 1, 12)
+                });
+                this.selectedPomoMinutes = store.getPomodoroSettings().workMinutes;
+                this.render(container);
             });
         }
     }
