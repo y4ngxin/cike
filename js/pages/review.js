@@ -12,6 +12,8 @@ window.ReviewPage = {
     revealed: false,
     sessionDone: 0,
     sessionCorrect: 0,
+    // 即时练习模式（v1.3.3）：练未到期项，不影响间隔节奏
+    instantMode: false,
 
     render: function(container) {
         const store = window.CiKeStore;
@@ -19,6 +21,7 @@ window.ReviewPage = {
 
         if (!this.queue) {
             this.queue = store.getDueReviewItems().slice();
+            this.instantMode = false;
             this.sessionDone = 0;
             this.sessionCorrect = 0;
             this.current = this.queue[0] || null;
@@ -61,6 +64,7 @@ window.ReviewPage = {
         `;
 
         if (!this.current) {
+            const canInstant = stats.due === 0 && stats.pending > 0;
             html += `
                 <div class="card" style="padding: 28px 20px; text-align: center;">
                     <div style="font-size: 34px; margin-bottom: 10px;">🌾</div>
@@ -70,6 +74,16 @@ window.ReviewPage = {
                             ? '队列里还有内容，只是还没到该重逢的时候。<br>回炉是慢慢来的，着急反而记不牢。'
                             : '去修炼一个单元吧。通关后，它的核心概念会自动进入这里，<br>在几天后回来找你。'}
                     </div>
+                    ${canInstant ? `
+                        <div style="margin-top: 14px; padding: 12px; border-radius: 10px; background: rgba(212,165,116,0.10); border: 1px dashed var(--color-accent);">
+                            <div style="font-size: 12.5px; color: var(--color-text); line-height: 1.6; margin-bottom: 8px;">
+                                实在想现在练一练也可以——即时练习不影响它们的回炉节奏。
+                            </div>
+                            <button id="btn-review-instant" class="btn" style="background: var(--color-accent); color: white; border: none; padding: 10px; font-size: 13px; border-radius: 8px; width: 100%;">
+                                ⚡ 即时练习 ${Math.min(stats.pending, 5)} 项（不计回炉进度）
+                            </button>
+                        </div>
+                    ` : ''}
                     <button id="btn-review-goskills" class="btn btn-primary" style="margin-top: 16px; padding: 11px; font-size: 14px; border-radius: 8px;">
                         去五艺大厅 →
                     </button>
@@ -98,7 +112,7 @@ window.ReviewPage = {
                 <div class="card" style="padding: 18px; margin-bottom: 16px;">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                         <span style="font-size: 12px; color: ${skill.color}; font-weight: bold;">${skill.icon} ${skill.title} · 单元 ${item.unitNumber}</span>
-                        <span style="font-size: 11px; color: var(--color-text-light);">还剩 ${remain} 项</span>
+                        <span style="font-size: 11px; color: var(--color-text-light);">${this.instantMode ? '⚡ 即时练习 · ' : ''}还剩 ${remain} 项</span>
                     </div>
                     ${this.renderBody(resolved, item)}
                 </div>
@@ -144,7 +158,9 @@ window.ReviewPage = {
 
     renderBody: function(r, item) {
         const store = window.CiKeStore;
-        const stageInfo = ['第 1 次回炉', '第 2 次回炉', '第 3 次回炉', '最后一次回炉'][Math.min(item.stage || 0, 3)];
+        const stageInfo = this.instantMode
+            ? '即时练习'
+            : ['第 1 次回炉', '第 2 次回炉', '第 3 次回炉', '最后一次回炉'][Math.min(item.stage || 0, 3)];
 
         if (r.kind === 'card') {
             if (!this.revealed) {
@@ -216,6 +232,21 @@ window.ReviewPage = {
         if (back) back.addEventListener('click', () => window.CiKeRouter.navigate('skills'));
         const go = container.querySelector('#btn-review-goskills');
         if (go) go.addEventListener('click', () => window.CiKeRouter.navigate('skills'));
+        // 即时练习：取队列前 5 项（含未到期），不影响间隔节奏
+        const inst = container.querySelector('#btn-review-instant');
+        if (inst) {
+            inst.addEventListener('click', () => {
+                this.queue = window.CiKeStore.getReviewItems().slice(0, 5);
+                this.instantMode = true;
+                this.sessionDone = 0;
+                this.sessionCorrect = 0;
+                this.current = this.queue[0] || null;
+                this.checked = false;
+                this.picked = null;
+                this.revealed = false;
+                this.render(container);
+            });
+        }
     },
 
     bindBody: function(container, r, item) {
@@ -224,7 +255,12 @@ window.ReviewPage = {
         if (back) back.addEventListener('click', () => window.CiKeRouter.navigate('skills'));
 
         const advance = (correct) => {
-            store.recordReview(item.id, correct, { fromReview: true });
+            if (this.instantMode) {
+                // 即时练习：只记回炉行为，不动间隔档位
+                store.recordReview(item.id, correct, { fromReview: true, instant: true });
+            } else {
+                store.recordReview(item.id, correct, { fromReview: true });
+            }
             this.sessionDone += 1;
             if (correct) this.sessionCorrect += 1;
             this.queue.shift();
@@ -232,6 +268,11 @@ window.ReviewPage = {
             this.checked = false;
             this.picked = null;
             this.revealed = false;
+            if (!this.queue.length && this.instantMode) {
+                this.instantMode = false;
+                this.queue = null; // 置空让下次渲染按到期项重新初始化
+                window.CiKeUI.toast('⚡ 即时练习完成，回炉节奏未受影响', 'success');
+            }
             const newly = store.syncBadges();
             if (newly.length) {
                 if (window.CiKeAudio) window.CiKeAudio.feedback('levelup');

@@ -50,7 +50,7 @@ window.SkillsPage = {
                         <div style="height: 100%; width: ${Math.round(rank.ratio * 100)}%; background: var(--color-accent); border-radius: 99px;"></div>
                     </div>
                     <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--color-text-light); margin-top: 6px;">
-                        <span>总进度 ${Math.round(rank.ratio * 100)}%</span>
+                        <span>修为进度</span>
                         <span>${rank.xp} / ${rank.max} 修为</span>
                     </div>
                 </div>
@@ -130,7 +130,6 @@ window.SkillsPage = {
                                     <p style="margin: 2px 0 0 0; font-size: 13px; color: var(--color-text-light);">${skill.subtitle} · ${skillXp} 修为</p>
                                 </div>
                             </div>
-                            <span style="font-size: 13px; font-weight: bold; color: ${skill.color};">${percent}%</span>
                         </div>
 
                         <div style="background: var(--color-bg); border-radius: 8px; padding: 8px 12px; margin: 10px 0; font-size: 12px; line-height: 1.5; color: var(--color-text);">

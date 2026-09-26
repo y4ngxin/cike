@@ -50,6 +50,7 @@
                     </div>
 
                     <button id="morning-submit" style="width: 100%; background: var(--cike-accent, #D4A574); color: white; border: none; padding: 16px; border-radius: 16px; font-size: 18px; font-weight: bold; min-height: 56px; cursor: pointer; transition: opacity 0.2s;">开始这一天</button>
+                    <button id="morning-skip" style="width: 100%; background: none; border: none; padding: 14px; margin-top: 4px; color: var(--cike-text-light, #9C8E82); font-size: 14px; cursor: pointer;">稍后再说 →</button>
                 </div>
             `;
 
@@ -66,6 +67,12 @@
                     target.style.transform = 'scale(1.2)';
                     selectedMood = target.getAttribute('data-mood');
                 });
+            });
+
+            container.querySelector('#morning-skip').addEventListener('click', () => {
+                if (window.CiKeRouter) {
+                    window.CiKeRouter.navigate('home');
+                }
             });
 
             container.querySelector('#morning-submit').addEventListener('click', () => {

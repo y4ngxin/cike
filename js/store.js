@@ -7,6 +7,10 @@
 window.CiKeStore = (function() {
     const PREFIX = 'cike_';
 
+    // 应用版本号（唯一权威来源）。settings 页、app.js 控制台、导出 JSON 都读这里；
+    // sw.js 的 CACHE_NAME 是 Service Worker 环境读不到 window，仍需手动同步。
+    window.CIKE_VERSION = '1.3.3';
+
     // ========== 工具方法 ==========
 
     /** 生成唯一 ID */
@@ -938,6 +942,18 @@ window.CiKeStore = (function() {
             const item = items[idx];
             const stats = get('review_stats', { total: 0, mastered: 0 });
 
+            // 即时练习（v1.3.3）：未到期时的提前练 / 答错当下的立刻重想。
+            // 只记一次回炉行为（每日任务 + 累计），不推进也不回退间隔档位，dueAt 保持不变。
+            if (opts.instant) {
+                item.lastAt = Date.now();
+                set('review_items', items);
+                stats.total += 1;
+                set('review_stats', stats);
+                this.bumpDailyStat('review', 1);
+                this.logTrainingActivity();
+                return item;
+            }
+
             if (correct) {
                 item.stage = (item.stage || 0) + 1;
                 if (item.stage >= this._reviewIntervals.length) {
@@ -984,7 +1000,7 @@ window.CiKeStore = (function() {
         _questDefs: [
             { id: 'unit1', label: '完成 1 个修炼单元', target: 1, stat: 'unit', route: 'skills' },
             { id: 'quiz1', label: '通关 1 个单元的「练」', target: 1, stat: 'quiz', route: 'skills' },
-            { id: 'review3', label: '到复习站回炉 3 项', target: 3, stat: 'review', route: 'review' },
+            { id: 'review3', label: '到复习站回炉 3 项', target: 3, stat: 'review', route: 'review', needsQueue: true },
             { id: 'cards5', label: '读 5 张概念卡', target: 5, stat: 'card', route: 'skills' },
             { id: 'reflect1', label: '写下 1 条反思', target: 1, stat: 'reflect', route: 'mirror' },
             { id: 'focus1', label: '完成 1 次专注', target: 1, stat: 'focus', route: 'focus' },
@@ -1022,7 +1038,11 @@ window.CiKeStore = (function() {
             const today = this._dayKey();
             let stored = get('daily_quests', null);
             if (!stored || stored.date !== today) {
-                const pool = this._questDefs.slice();
+                // v1.3.3：回炉类任务只在队列非空时进入抽样池。
+                // 队列空（如从未答过题的第 1 天）=> 当日必然 0/3 死锁，不许入池；
+                // 队列非空时即使 0 项到期，也可走复习站「即时练习」完成，不算死锁。
+                const hasQueue = this.getReviewItems().length > 0;
+                const pool = this._questDefs.filter(d => !d.needsQueue || hasQueue);
                 const picked = [];
                 let s = this._seedFromDay(today) || 1;
                 while (picked.length < 3 && pool.length) {
@@ -1469,7 +1489,7 @@ window.CiKeStore = (function() {
         exportDataJSON() {
             const exportData = {
                 app: 'CiKe (此刻)',
-                version: '1.3.2',
+                version: window.CIKE_VERSION || '1.3.3',
                 exportedAt: new Date().toISOString(),
                 data: {}
             };

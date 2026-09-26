@@ -59,13 +59,10 @@ window.CiKeRouter = (function() {
     function handleInitialRoute() {
         let hash = window.location.hash.substring(1);
         if (!hash || hash === '') {
-            // 检查是否已完成今天的晨间打卡
-            const morningCheckin = window.CiKeStore.getTodayCheckin('morning');
-            if (!morningCheckin) {
-                navigate('morning-checkin');
-            } else {
-                navigate('home');
-            }
+            // v1.3.3 起：冷启动一律落首页。
+            // 不再强制劫持进晨间三问 —— 新用户需要先在首页看懂「今天该做什么」，
+            // 晨间三问由首页日循环的第一步自然引导（用户主动进入，而非被表单拦截）。
+            navigate('home');
         } else {
             handleHashChange();
         }

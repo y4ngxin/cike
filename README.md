@@ -106,3 +106,19 @@ d:\project\zhaoxi\cike\
 python -m http.server 8080
 ```
 浏览器访问：`http://localhost:8080`
+
+---
+
+## ✅ 回归测试（v1.3.3 起）
+
+运行时保持零依赖；测试依赖 jsdom，仅作 devDependency（不会部署到 Pages，`node_modules/` 已 gitignore）：
+
+```bash
+npm install   # 仅首次：安装 jsdom
+npm test      # 运行 tests/ 下全部回归（数据层机制 + 页面交互，90+ 断言）
+```
+
+- `tests/mechanics.test.js`：内容层完整性、修炼点幂等、通关判定、间隔重复（含即时练习）、每日任务过滤、导入导出往返
+- `tests/pages.test.js`：冷启动、五步顺序门禁、答题即时重想、复习站即时练习、导航结构、原生弹窗零调用
+- CI（`.github/workflows/deploy.yml`）：`verify` 作业先跑 `node --check` + `npm test`，失败不部署
+

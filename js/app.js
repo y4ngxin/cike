@@ -100,5 +100,5 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    console.log('「此刻」(CiKe) v1.3.2 已就绪 🚀');
+    console.log(`「此刻」(CiKe) v${window.CIKE_VERSION || '?'} 已就绪 🚀`);
 });

@@ -7,3 +7,6 @@ Thumbs.db
 # AI 工作区记忆与临时文件（不纳入版本库）
 .workbuddy/
 .tmp-*
+
+# 测试依赖（运行时零依赖；仅 npm test 需要）
+node_modules/

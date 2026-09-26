@@ -43,6 +43,9 @@ window.FocusPage = {
             html += `
                 <p class="empty-state" style="padding: 10px 0; margin: 0; font-size: 14px; color: #888;">还没有设定今天的重点</p>
                 <button id="btn-set-focus" class="btn btn-secondary" style="margin-top: 10px; width: 100%; border-radius: 8px; font-size: 13px;">设定专注任务</button>
+                <div style="font-size: 12px; color: var(--color-text-light); margin-top: 10px; text-align: center;">
+                    或先<a href="#focus-timer" style="color: var(--color-accent); text-decoration: none;">开始不限时专注 →</a>
+                </div>
             `;
         }
 
@@ -87,9 +90,6 @@ window.FocusPage = {
                 <div style="display: flex; gap: 8px; margin-bottom: 12px;">${pomoChips}</div>
 
                 <button id="btn-start-pomodoro" class="btn" style="width: 100%; background: #D9584A; color: white; border: none; padding: 13px; border-radius: 12px; font-size: 15px; font-weight: 600;">🍅 开始番茄钟</button>
-                <div style="font-size: 11px; color: var(--color-text-light); margin-top: 8px; text-align: center;">
-                    更习惯不限时的沉浸？<a href="#focus-timer" style="color: var(--color-accent); text-decoration: none;">开启正向计时 →</a>
-                </div>
             </div>
 
             <div class="card" style="padding: 16px; margin-bottom: 18px;">

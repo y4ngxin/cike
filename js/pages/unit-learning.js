@@ -59,6 +59,26 @@ window.UnitLearningPage = {
             this.practiceChecks = steps.map(() => false);
         }
 
+        // ---------- 五步顺序门禁（v1.3.3）----------
+        // 宣称的顺序是 知 → 练 → 观 → 行 → 省，但此前整页一次性渲染、可乱序提交。
+        // 规则：未完成的下一步才锁定；已完成的步骤永远保持完成态（兼容四步时代的旧数据）。
+        const quizPassed = quiz ? !!(unitProg.quiz && unitProg.quiz.passed) : true;
+        const dKnow = !!unitProg.know, dQuiz = quizPassed, dObserve = !!unitProg.observe,
+              dPractice = !!unitProg.practice, dReflect = !!unitProg.reflect;
+        const showQuizStep = !quiz || dKnow;                        // 练：需先完成知
+        const showObserve  = dObserve  || (dKnow && dQuiz);         // 观：需知+练（已完成则直显）
+        const showPractice = dPractice || (dKnow && dQuiz && dObserve);
+        const showReflect  = dReflect  || (dKnow && dQuiz && dObserve && dPractice);
+
+        // 步骤总览数据（进度条兼导航）
+        const flow = [
+            { icon: '📖', label: '知', done: dKnow,     open: true,         target: 'step-know' },
+            ...(quiz ? [{ icon: '🎯', label: '练', done: dQuiz, open: dKnow, target: 'step-quiz' }] : []),
+            { icon: '👁️', label: '观', done: dObserve,  open: showObserve,  target: 'step-observe' },
+            { icon: '🤸', label: '行', done: dPractice, open: showPractice, target: 'step-practice' },
+            { icon: '🪞', label: '省', done: dReflect,  open: showReflect,  target: 'step-reflect' }
+        ];
+
         // 🏆 结业检验关
         const isVerificationUnit = !!unit.isVerification;
         const verification = isVerificationUnit ? store.getVerification(skill.id) : null;
@@ -117,16 +137,32 @@ window.UnitLearningPage = {
                     </div>
                 ` : ''}
 
+                ${this.renderStepNav(flow)}
+
                 <!-- 1. 📖 知 · 理解 -->
                 ${this.renderKnow(unitProg, content, unit)}
                 <!-- 2. 🎯 练 · 主动提取（v1.3 新增） -->
-                ${quiz ? this.renderQuizShell(unitProg, quiz) : ''}
+                ${quiz ? (showQuizStep
+                    ? this.renderQuizShell(unitProg, quiz)
+                    : this.renderLockedStep('step-quiz', '🎯', 2, '练 · 主动提取',
+                        '先完成「📖 知 · 理解」——看过一遍，再来提取。看过 ≠ 记住，提取才是记住的方式。')) : ''}
                 <!-- 3. 👁️ 观 · 觉察 -->
-                ${this.renderObserve(unitProg, unit)}
+                ${showObserve
+                    ? this.renderObserve(unitProg, unit)
+                    : this.renderLockedStep('step-observe', '👁️', 3, '观 · 日常生活觉察',
+                        quiz && !dQuiz
+                            ? '先在「🎯 练」里拿到 60%——提取过一遍，观察时才知道要看什么。'
+                            : '先完成上一步，觉察才有锚点。')}
                 <!-- 4. 🤸 行 · 实践 -->
-                ${this.renderPractice(unitProg, unit, steps)}
+                ${showPractice
+                    ? this.renderPractice(unitProg, unit, steps)
+                    : this.renderLockedStep('step-practice', '🤸', 4, '行 · 动手实战',
+                        '先完成「👁️ 观 · 觉察」——在生活里看见过它，动手时才知道在练什么。')}
                 <!-- 5. 🪞 省 · 反思 -->
-                ${this.renderReflect(unitProg, unit)}
+                ${showReflect
+                    ? this.renderReflect(unitProg, unit)
+                    : this.renderLockedStep('step-reflect', '🪞', 5, '省 · 深度反思',
+                        '先完成「🤸 行 · 动手实战」——实践过，才有东西可反思。')}
 
                 ${this.renderVerificationPanel(isVerificationUnit, isVerified, verification, isAllDone, skill)}
 
@@ -143,8 +179,44 @@ window.UnitLearningPage = {
         container.innerHTML = html;
         this.bindEvents(container, skill.id, unit.unitNumber);
 
-        // 「练」区由子渲染接管（便于局部刷新）
-        if (quiz) this.paintQuiz(container, unitProg, quiz);
+        // 「练」区由子渲染接管（便于局部刷新）；未解锁时 quiz 卡整体不渲染，无需接管
+        if (quiz && showQuizStep) this.paintQuiz(container, unitProg, quiz);
+    },
+
+    // ---------- 步骤总览（进度条兼导航，v1.3.3）----------
+    renderStepNav: function(flow) {
+        const dots = flow.map((s, i) => {
+            const locked = !s.done && !s.open;
+            const color = s.done ? '#5B8C6F' : (locked ? 'var(--color-border)' : 'var(--color-accent)');
+            const inner = s.done ? '✓' : (locked ? '🔒' : s.icon);
+            const connector = i < flow.length - 1
+                ? `<span style="flex: 1; height: 2px; background: var(--color-border); margin: 0 3px; align-self: center; min-width: 8px;"></span>`
+                : '';
+            return `
+                <button class="step-nav-dot" data-target="${s.target}" ${locked ? 'disabled' : ''}
+                    style="flex: none; display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: none; padding: 0; cursor: ${locked ? 'default' : 'pointer'};"
+                    title="${s.label}${s.done ? '（已完成）' : (locked ? '（先完成上一步）' : '（当前可做）')}">
+                    <span style="width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; border: 2px solid ${color}; background: ${s.done ? 'rgba(91,140,111,0.12)' : 'transparent'}; color: ${color};">${inner}</span>
+                    <span style="font-size: 10px; color: ${s.done ? '#5B8C6F' : 'var(--color-text-light)'};">${s.label}</span>
+                </button>
+            ` + connector;
+        }).join('');
+        return `<div style="display: flex; align-items: flex-start; margin-bottom: 16px; padding: 0 6px;">${dots}</div>`;
+    },
+
+    // ---------- 锁定步骤占位（v1.3.3）----------
+    renderLockedStep: function(id, icon, no, title, needText) {
+        return `
+            <div class="card step-card" id="${id}" style="border-left: 4px solid var(--color-border); margin-bottom: 16px; opacity: 0.72;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <span style="font-size: 15px; font-weight: bold; display: flex; align-items: center; gap: 6px; color: var(--color-text-light);">
+                        <span>${icon}</span> ${no}. ${title}
+                    </span>
+                    <span style="font-size: 12px; color: var(--color-text-light);">🔒</span>
+                </div>
+                <div style="margin-top: 8px; font-size: 12.5px; color: var(--color-text-light); line-height: 1.6;">${needText}</div>
+            </div>
+        `;
     },
 
     // ---------- 步骤渲染 ----------
@@ -192,7 +264,7 @@ window.UnitLearningPage = {
         ` : '';
 
         return `
-            <div class="card step-card" style="border-left: 4px solid ${done ? '#5B8C6F' : 'var(--color-accent)'}; margin-bottom: 16px;">
+            <div class="card step-card" id="step-know" style="border-left: 4px solid ${done ? '#5B8C6F' : 'var(--color-accent)'}; margin-bottom: 16px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <span style="font-size: 15px; font-weight: bold; display: flex; align-items: center; gap: 6px;">
                         <span>📖</span> 1. 知 · 理解
@@ -227,7 +299,7 @@ window.UnitLearningPage = {
     renderObserve: function(unitProg, unit) {
         const done = unitProg.observe;
         return `
-            <div class="card step-card" style="border-left: 4px solid ${done ? '#5B8C6F' : '#6A89CC'}; margin-bottom: 16px;">
+            <div class="card step-card" id="step-observe" style="border-left: 4px solid ${done ? '#5B8C6F' : '#6A89CC'}; margin-bottom: 16px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <span style="font-size: 15px; font-weight: bold; display: flex; align-items: center; gap: 6px;">
                         <span>👁️</span> 3. 观 · 日常生活觉察
@@ -260,7 +332,7 @@ window.UnitLearningPage = {
         `).join('');
 
         return `
-            <div class="card step-card" style="border-left: 4px solid ${done ? '#5B8C6F' : '#E58E26'}; margin-bottom: 16px;">
+            <div class="card step-card" id="step-practice" style="border-left: 4px solid ${done ? '#5B8C6F' : '#E58E26'}; margin-bottom: 16px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <span style="font-size: 15px; font-weight: bold; display: flex; align-items: center; gap: 6px;">
                         <span>🤸</span> 4. 行 · 动手实战
@@ -294,7 +366,7 @@ window.UnitLearningPage = {
         const done = unitProg.reflect;
         const moods = ['😤', '😐', '🙂', '😊', '🔥'];
         return `
-            <div class="card step-card" style="border-left: 4px solid ${done ? '#5B8C6F' : '#786FA6'}; margin-bottom: 24px;">
+            <div class="card step-card" id="step-reflect" style="border-left: 4px solid ${done ? '#5B8C6F' : '#786FA6'}; margin-bottom: 24px;">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                     <span style="font-size: 15px; font-weight: bold; display: flex; align-items: center; gap: 6px;">
                         <span>🪞</span> 5. 省 · 深度反思 (自动同步到镜)
@@ -444,9 +516,16 @@ window.UnitLearningPage = {
                 </div>
                 <div style="font-size: 13px; line-height: 1.6; color: ${picked === correctIndex ? '#33604A' : '#7B5612'};">${this.md(q.explain || '')}</div>
             </div>
-            <button id="btn-quiz-next" class="btn" style="background: var(--color-focus); color: white; border: none; padding: 11px; font-size: 14px; border-radius: 8px; width: 100%;">
-                ${st.index + 1 >= quiz.length ? '查看结果' : '继续 →'}
-            </button>
+            <div style="display: flex; gap: 10px;">
+                ${picked !== correctIndex ? `
+                    <button id="btn-quiz-rethink" class="btn" style="flex: 1; background: none; border: 1px solid #E58E26; color: #B26A00; padding: 11px; font-size: 14px; border-radius: 8px;">
+                        🔄 现在再想一遍
+                    </button>
+                ` : ''}
+                <button id="btn-quiz-next" class="btn" style="flex: 1; background: var(--color-focus); color: white; border: none; padding: 11px; font-size: 14px; border-radius: 8px;">
+                    ${st.index + 1 >= quiz.length ? '查看结果' : '继续 →'}
+                </button>
+            </div>
         ` : `
             <button id="btn-quiz-check" class="btn" ${picked === null ? 'disabled' : ''} style="background: ${picked === null ? '#E0D8D0' : 'var(--color-focus)'}; color: ${picked === null ? '#999' : 'white'}; border: none; padding: 11px; font-size: 14px; border-radius: 8px; width: 100%; cursor: ${picked === null ? 'default' : 'pointer'};">
                 确认作答
@@ -496,6 +575,17 @@ window.UnitLearningPage = {
                 st.results[st.index] = { index: st.index, correct };
                 st.checked = true;
                 if (window.CiKeAudio) window.CiKeAudio.feedback(correct ? 'correct' : 'wrong');
+                this.paintQuiz(container, unitProg, quiz);
+            });
+        }
+
+        const btnRethink = area.querySelector('#btn-quiz-rethink');
+        if (btnRethink) {
+            btnRethink.addEventListener('click', () => {
+                // 答错当下的即时回收：撤掉本题这次错误作答，原地重来（不影响其他题）
+                st.results[st.index] = undefined;
+                st.picked = null;
+                st.checked = false;
                 this.paintQuiz(container, unitProg, quiz);
             });
         }
@@ -555,6 +645,16 @@ window.UnitLearningPage = {
         };
 
         on('#btn-back-skill', 'click', () => window.CiKeRouter.navigate(`skill-detail?id=${skillId}`));
+
+        // 步骤总览：点击已解锁步骤滚动定位（锁定的已 disabled）
+        container.querySelectorAll('.step-nav-dot').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const target = container.querySelector('#' + btn.getAttribute('data-target'));
+                if (target && typeof target.scrollIntoView === 'function') {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
 
         // 知
         on('#btn-done-know', 'click', () => {
