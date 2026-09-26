@@ -3,7 +3,7 @@
  * 实现全站资源完全离线访问，打造原生 App 级本地加载速度
  */
 
-const CACHE_NAME = 'cike-v1.2.0';
+const CACHE_NAME = 'cike-v1.3.0';
 
 const ASSETS_TO_CACHE = [
     './',
@@ -12,6 +12,11 @@ const ASSETS_TO_CACHE = [
     './css/styles.css',
     './js/audio.js',
     './js/skills-data.js',
+    './js/skills-content/meta-learning.js',
+    './js/skills-content/communication.js',
+    './js/skills-content/finance.js',
+    './js/skills-content/emotion.js',
+    './js/skills-content/discipline.js',
     './js/store.js',
     './js/router.js',
     './js/ui.js',
@@ -28,6 +33,9 @@ const ASSETS_TO_CACHE = [
     './js/pages/skills.js',
     './js/pages/skill-detail.js',
     './js/pages/unit-learning.js',
+    './js/pages/today-training.js',
+    './js/pages/review.js',
+    './js/pages/archive.js',
     './js/pages/plan.js',
     './js/pages/focus.js',
     './js/pages/focus-timer.js',

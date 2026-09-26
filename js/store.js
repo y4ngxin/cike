@@ -23,7 +23,11 @@ window.CiKeStore = (function() {
     function get(key, defaultValue) {
         try {
             const val = localStorage.getItem(PREFIX + key);
-            return val ? JSON.parse(val) : (defaultValue !== undefined ? defaultValue : null);
+            if (val === null) return defaultValue !== undefined ? defaultValue : null;
+            const parsed = JSON.parse(val);
+            // 显式存入的 null 视为「无数据」，回落到默认值
+            if (parsed === null && defaultValue !== undefined) return defaultValue;
+            return parsed;
         } catch (e) {
             console.error(`[Store] 读取 ${key} 失败:`, e);
             return defaultValue !== undefined ? defaultValue : null;
@@ -379,14 +383,16 @@ window.CiKeStore = (function() {
                 evening
             };
         },
-        /** 汇总所有有"实质行为"的日期集合（记录 / 签到 / 专注） */
+        /** 汇总所有有"实质行为"的日期集合（记录 / 签到 / 专注 / 修炼 / 补签） */
         getActivityDates() {
-            const set = new Set();
-            const add = ts => { if (ts) set.add(new Date(ts).toDateString()); };
+            const days = new Set();
+            const add = ts => { if (ts) days.add(new Date(ts).toDateString()); };
             this.getRecords().forEach(r => add(r.createdAt));
             this.getCheckins().forEach(c => add(c.createdAt));
             this.getFocusSessions().forEach(s => add(s.completedAt));
-            return set;
+            (get('training_log', []) || []).forEach(add);
+            (get('streak_patches', []) || []).forEach(k => { if (k) days.add(k); });
+            return days;
         },
         /**
          * 连续修炼天数
@@ -549,6 +555,8 @@ window.CiKeStore = (function() {
                     sourceRef: session.id
                 });
             }
+            this.bumpDailyStat('focus', 1);
+            this.logTrainingActivity();
             return session;
         },
 
@@ -568,14 +576,7 @@ window.CiKeStore = (function() {
         },
         getUnitProgress(skillId, unitNumber) {
             const skillProg = this.getSkillProgress(skillId);
-            return (skillProg.units && skillProg.units[unitNumber]) || {
-                know: false,
-                observe: false,
-                practice: false,
-                reflect: false,
-                reflectionText: '',
-                mood: ''
-            };
+            return (skillProg.units && skillProg.units[unitNumber]) || this._emptyUnitProgress();
         },
         /**
          * 修炼等级换算
@@ -600,26 +601,9 @@ window.CiKeStore = (function() {
         },
         completeSkillStep(skillId, unitNumber, stepType, extraData = {}) {
             const all = this.getSkillsProgress();
-            if (!all[skillId]) {
-                all[skillId] = {
-                    currentUnit: 1,
-                    completedUnits: [],
-                    units: {}
-                };
-            }
-            const skillProg = all[skillId];
-            if (!skillProg.units[unitNumber]) {
-                skillProg.units[unitNumber] = {
-                    know: false,
-                    observe: false,
-                    practice: false,
-                    reflect: false,
-                    reflectionText: '',
-                    mood: ''
-                };
-            }
+            const unitProg = this._ensureUnit(all, skillId, unitNumber);
+            const wasSet = unitProg[stepType] === true;
 
-            const unitProg = skillProg.units[unitNumber];
             unitProg[stepType] = true;
 
             if (stepType === 'reflect' && extraData.reflectionText) {
@@ -630,7 +614,7 @@ window.CiKeStore = (function() {
                 const skills = window.CiKeSkillsData || [];
                 const skill = skills.find(s => s.id === skillId);
                 const skillTitle = skill ? skill.title : '五艺';
-                
+
                 this.addRecord({
                     type: 'thought',
                     content: `【🏛️ ${skillTitle} · 单元 ${unitNumber} 反思】\n${extraData.reflectionText}`,
@@ -640,18 +624,42 @@ window.CiKeStore = (function() {
                 });
             }
 
-            // 检查单元是否4步全完成
-            if (unitProg.know && unitProg.observe && unitProg.practice && unitProg.reflect) {
-                if (!skillProg.completedUnits.includes(unitNumber)) {
-                    skillProg.completedUnits.push(unitNumber);
-                }
-                if (skillProg.currentUnit <= unitNumber) {
-                    skillProg.currentUnit = unitNumber + 1;
-                }
-            }
-
+            // 通关判定：四步完成 +（若该单元有测验）测验已通过
+            const newlyCompleted = this._refreshCompletion(all[skillId], skillId, unitNumber) === 'new';
             set('skills_progress', all);
+
+            // 今日修炼与连胜：仅在步骤"首次完成"时计数，重复点击不会虚增进度
+            if (!wasSet) {
+                this.bumpDailyStat('step', 1);
+                if (stepType === 'reflect') this.bumpDailyStat('reflect', 1);
+                this.logTrainingActivity();
+            }
+            if (newlyCompleted) this.bumpDailyStat('unit', 1);
+
             return unitProg;
+        },
+
+        /** 依据通关条件刷新 completedUnits / currentUnit，并在首次通关时播种概念回炉
+         *  @returns {'new'|'done'|false} 'new' 表示本次是首次通关 */
+        _refreshCompletion(skillProg, skillId, unitNumber) {
+            const unitProg = skillProg.units[unitNumber];
+            const content = this.getUnitContent(skillId, unitNumber);
+            if (!this.isUnitComplete(unitProg, content)) return false;
+
+            let isNew = false;
+            if (!skillProg.completedUnits.includes(unitNumber)) {
+                skillProg.completedUnits.push(unitNumber);
+                isNew = true;
+            }
+            if (skillProg.currentUnit <= unitNumber) {
+                skillProg.currentUnit = unitNumber + 1;
+            }
+            // 首次通关 → 把该单元的核心概念投入长期回炉（3 天后第一次）
+            if (!unitProg.reviewSeeded) {
+                unitProg.reviewSeeded = true;
+                this.enqueueReview(skillId, unitNumber, 'card', -1, 3);
+            }
+            return isNew ? 'new' : 'done';
         },
         getActiveSkillUnit() {
             const skills = window.CiKeSkillsData || [];
@@ -726,6 +734,449 @@ window.CiKeStore = (function() {
             const prog = this.getSkillProgress(skillId);
             const allUnitsDone = (prog.completedUnits || []).length >= skill.units.length;
             return allUnitsDone && !!this.getVerification(skillId);
+        },
+
+        // ==========================================
+        // 🌱 修炼成长体系（v1.3 起）
+        // 修炼点 / 单元测验 / 错题回炉 / 今日修炼 / 修炼印记 / 补签卡
+        // 原则：只增不减、不做惩罚、不制造焦虑
+        // ==========================================
+
+        /** 读取某单元的增厚内容（微卡 / 测验 / 行动清单 / 学习目标） */
+        getUnitContent(skillId, unitNumber) {
+            const all = window.CiKeSkillsContent || {};
+            return all[skillId + ':' + unitNumber] || null;
+        },
+
+        // ---------- 🌟 修炼点（XP 的改造版：只增不减） ----------
+        _xpRules: { know: 5, observe: 5, practice: 10, reflect: 10, quizMax: 15, unit: 20 },
+
+        _emptyUnitProgress() {
+            return {
+                know: false, observe: false, practice: false, reflect: false,
+                reflectionText: '', mood: '', quiz: null, cardsRead: 0, reviewSeeded: false
+            };
+        },
+        _ensureUnit(all, skillId, unitNumber) {
+            if (!all[skillId]) all[skillId] = { currentUnit: 1, completedUnits: [], units: {} };
+            if (!all[skillId].units[unitNumber]) {
+                all[skillId].units[unitNumber] = this._emptyUnitProgress();
+            }
+            return all[skillId].units[unitNumber];
+        },
+
+        /** 单元是否真正通关：四步完成 +（若该单元有测验）测验通过 */
+        isUnitComplete(unitProg, content) {
+            if (!unitProg) return false;
+            if (!(unitProg.know && unitProg.observe && unitProg.practice && unitProg.reflect)) return false;
+            if (content && content.quiz && content.quiz.length) {
+                return !!(unitProg.quiz && unitProg.quiz.passed);
+            }
+            return true;
+        },
+
+        /** 单单元已获得的修炼点（由当前状态推导，幂等，不重复计分） */
+        getUnitXp(unitProg, content) {
+            if (!unitProg) return 0;
+            const r = this._xpRules;
+            let xp = 0;
+            if (unitProg.know) xp += r.know;
+            if (unitProg.observe) xp += r.observe;
+            if (unitProg.practice) xp += r.practice;
+            if (unitProg.reflect) xp += r.reflect;
+            if (unitProg.quiz && unitProg.quiz.total > 0) {
+                xp += Math.round(r.quizMax * (unitProg.quiz.bestCorrect / unitProg.quiz.total));
+            }
+            if (this.isUnitComplete(unitProg, content)) xp += r.unit;
+            return xp;
+        },
+
+        getXp() {
+            const skills = window.CiKeSkillsData || [];
+            let total = 0;
+            skills.forEach(s => {
+                const prog = this.getSkillProgress(s.id);
+                s.units.forEach(u => {
+                    total += this.getUnitXp(prog.units ? prog.units[u.unitNumber] : null, this.getUnitContent(s.id, u.unitNumber));
+                });
+            });
+            return total;
+        },
+
+        getSkillXp(skillId) {
+            const skills = window.CiKeSkillsData || [];
+            const skill = skills.find(s => s.id === skillId);
+            if (!skill) return 0;
+            const prog = this.getSkillProgress(skillId);
+            let xp = 0;
+            skill.units.forEach(u => {
+                xp += this.getUnitXp(prog.units ? prog.units[u.unitNumber] : null, this.getUnitContent(skillId, u.unitNumber));
+            });
+            return xp;
+        },
+
+        getMaxXp() {
+            const skills = window.CiKeSkillsData || [];
+            let xp = 0, units = 0, quizzes = 0;
+            skills.forEach(s => s.units.forEach(u => {
+                const c = this.getUnitContent(s.id, u.unitNumber);
+                let one = this._xpRules.know + this._xpRules.observe + this._xpRules.practice + this._xpRules.reflect + this._xpRules.unit;
+                if (c && c.quiz && c.quiz.length) { one += this._xpRules.quizMax; quizzes++; }
+                xp += one; units++;
+            }));
+            return { xp, units, quizzes };
+        },
+
+        /** 修为段位：初识 → 筑基 → 精进 → 通达 → 圆融 */
+        getXpRank() {
+            const xp = this.getXp();
+            const max = this.getMaxXp().xp || 1;
+            const ratio = xp / max;
+            const tiers = [
+                { min: 0.90, name: '圆融' },
+                { min: 0.60, name: '通达' },
+                { min: 0.30, name: '精进' },
+                { min: 0.10, name: '筑基' },
+                { min: 0, name: '初识' }
+            ];
+            const t = tiers.find(x => ratio >= x.min) || tiers[tiers.length - 1];
+            return { name: t.name, xp, max, ratio };
+        },
+
+        // ---------- 🎯 单元测验 ----------
+        /**
+         * 记录一次测验结果
+         * @param {Array<{index:number, correct:boolean}>} results
+         */
+        saveQuizResult(skillId, unitNumber, results) {
+            const content = this.getUnitContent(skillId, unitNumber);
+            const total = (content && content.quiz) ? content.quiz.length : results.length;
+            const correct = results.filter(r => r.correct).length;
+            const passed = total > 0 && (correct / total) >= 0.6;
+
+            const all = this.getSkillsProgress();
+            const unitProg = this._ensureUnit(all, skillId, unitNumber);
+            const prev = unitProg.quiz || { attempts: 0, bestCorrect: 0, passed: false };
+            unitProg.quiz = {
+                attempts: prev.attempts + 1,
+                bestCorrect: Math.max(prev.bestCorrect, correct),
+                lastCorrect: correct,
+                total,
+                passed: prev.passed || passed,
+                at: Date.now()
+            };
+            const newlyCompleted = this._refreshCompletion(all[skillId], skillId, unitNumber) === 'new';
+            set('skills_progress', all);
+
+            // 累计统计（用于印记判定）
+            const st = get('quiz_stats', { attempts: 0, correct: 0 });
+            st.attempts += total;
+            st.correct += correct;
+            set('quiz_stats', st);
+
+            if (passed) this.bumpDailyStat('quiz', 1);
+            if (newlyCompleted) this.bumpDailyStat('unit', 1);
+            this.logTrainingActivity();
+
+            // 错题入回炉队列；答对且已在本队列中的则推进一档
+            results.forEach(r => {
+                if (!r.correct) {
+                    this.enqueueReview(skillId, unitNumber, 'quiz', r.index);
+                } else {
+                    this._advanceIfQueued(skillId, unitNumber, 'quiz', r.index, true);
+                }
+            });
+
+            return unitProg.quiz;
+        },
+
+        // ---------- 🔁 复习站 · 回炉（间隔重复 1 / 3 / 7 / 21 天） ----------
+        _reviewIntervals: [1, 3, 7, 21],
+
+        getReviewItems() { return get('review_items', []); },
+
+        _reviewKey(skillId, unitNumber, kind, qIndex) {
+            return [skillId, unitNumber, kind, qIndex].join('|');
+        },
+
+        /** 把一个待复习项投入队列（delayDays 缺省为第一个间隔） */
+        enqueueReview(skillId, unitNumber, kind, qIndex, delayDays) {
+            const items = this.getReviewItems();
+            const id = this._reviewKey(skillId, unitNumber, kind, qIndex);
+            const days = typeof delayDays === 'number' ? delayDays : this._reviewIntervals[0];
+            const exist = items.find(i => i.id === id);
+            if (exist) {
+                exist.stage = 0;
+                exist.dueAt = Date.now() + days * 86400000;
+                exist.wrongCount = (exist.wrongCount || 0) + 1;
+                set('review_items', items);
+                return exist;
+            }
+            const item = {
+                id, skillId, unitNumber, kind, qIndex,
+                stage: 0, wrongCount: 1,
+                addedAt: Date.now(),
+                dueAt: Date.now() + days * 86400000
+            };
+            items.push(item);
+            set('review_items', items);
+            return item;
+        },
+
+        /**
+         * 回炉作答结果：答对则推进到下一档间隔，答满档位即"彻底掌握"并移出队列；
+         * 答错则退回第一档。永不扣分、永不惩罚。
+         */
+        recordReview(itemId, correct, opts = {}) {
+            const items = this.getReviewItems();
+            const idx = items.findIndex(i => i.id === itemId);
+            if (idx < 0) return null;
+            const item = items[idx];
+            const stats = get('review_stats', { total: 0, mastered: 0 });
+
+            if (correct) {
+                item.stage = (item.stage || 0) + 1;
+                if (item.stage >= this._reviewIntervals.length) {
+                    items.splice(idx, 1);
+                    set('review_items', items);
+                    stats.total += 1; stats.mastered += 1;
+                    set('review_stats', stats);
+                    if (opts.fromReview) { this.bumpDailyStat('review', 1); this.logTrainingActivity(); }
+                    return { removed: true, mastered: true };
+                }
+                item.dueAt = Date.now() + this._reviewIntervals[item.stage] * 86400000;
+            } else {
+                item.stage = 0;
+                item.wrongCount = (item.wrongCount || 0) + 1;
+                item.dueAt = Date.now() + this._reviewIntervals[0] * 86400000;
+            }
+            item.lastAt = Date.now();
+            set('review_items', items);
+            stats.total += 1;
+            set('review_stats', stats);
+            if (opts.fromReview) { this.bumpDailyStat('review', 1); this.logTrainingActivity(); }
+            return item;
+        },
+
+        _advanceIfQueued(skillId, unitNumber, kind, qIndex, correct) {
+            const id = this._reviewKey(skillId, unitNumber, kind, qIndex);
+            if (!this.getReviewItems().some(i => i.id === id)) return;
+            this.recordReview(id, correct, { fromReview: false });
+        },
+
+        getDueReviewItems(now) {
+            const t = typeof now === 'number' ? now : Date.now();
+            return this.getReviewItems().filter(i => (i.dueAt || 0) <= t);
+        },
+
+        getReviewStats() {
+            const items = this.getReviewItems();
+            const due = items.filter(i => (i.dueAt || 0) <= Date.now()).length;
+            const rs = get('review_stats', { total: 0, mastered: 0 });
+            return { due, pending: items.length, mastered: rs.mastered, reviewed: rs.total };
+        },
+
+        // ---------- ☀️ 今日修炼（每日 3 个微任务） ----------
+        _questDefs: [
+            { id: 'unit1', label: '完成 1 个修炼单元', target: 1, stat: 'unit', route: 'skills' },
+            { id: 'quiz1', label: '通关 1 个单元的「练」', target: 1, stat: 'quiz', route: 'skills' },
+            { id: 'review3', label: '到复习站回炉 3 项', target: 3, stat: 'review', route: 'review' },
+            { id: 'cards5', label: '读 5 张概念卡', target: 5, stat: 'card', route: 'skills' },
+            { id: 'reflect1', label: '写下 1 条反思', target: 1, stat: 'reflect', route: 'mirror' },
+            { id: 'focus1', label: '完成 1 次专注', target: 1, stat: 'focus', route: 'focus' },
+            { id: 'step2', label: '完成 2 个修炼步骤', target: 2, stat: 'step', route: 'skills' }
+        ],
+
+        _dayKey(d) { return (d || new Date()).toDateString(); },
+
+        _seedFromDay(key) {
+            let h = 2166136261;
+            for (let i = 0; i < key.length; i++) {
+                h ^= key.charCodeAt(i);
+                h = Math.imul(h, 16777619) >>> 0;
+            }
+            return h;
+        },
+
+        getDailyStats() {
+            const today = this._dayKey();
+            const st = get('daily_stats', null);
+            const blank = { date: today, unit: 0, quiz: 0, review: 0, card: 0, reflect: 0, focus: 0, step: 0 };
+            if (!st || st.date !== today) return blank;
+            return Object.assign(blank, st);
+        },
+
+        bumpDailyStat(key, n) {
+            const amount = typeof n === 'number' ? n : 1;
+            if (!amount) return;
+            const st = this.getDailyStats();
+            st[key] = (st[key] || 0) + amount;
+            set('daily_stats', st);
+        },
+
+        getDailyQuests() {
+            const today = this._dayKey();
+            let stored = get('daily_quests', null);
+            if (!stored || stored.date !== today) {
+                const pool = this._questDefs.slice();
+                const picked = [];
+                let s = this._seedFromDay(today) || 1;
+                while (picked.length < 3 && pool.length) {
+                    s = (Math.imul(s, 1103515245) + 12345) >>> 0;
+                    picked.push(pool.splice(s % pool.length, 1)[0]);
+                }
+                stored = { date: today, ids: picked.map(p => p.id) };
+                set('daily_quests', stored);
+            }
+            const stats = this.getDailyStats();
+            const items = (stored.ids || []).map(id => {
+                const def = this._questDefs.find(d => d.id === id) || this._questDefs[0];
+                const progress = Math.min(stats[def.stat] || 0, def.target);
+                return Object.assign({}, def, { progress, done: progress >= def.target });
+            });
+            const doneCount = items.filter(i => i.done).length;
+            return { date: today, items, doneCount, total: items.length, allDone: items.length > 0 && doneCount === items.length };
+        },
+
+        // ---------- 🏅 修炼印记（成就徽章，一次点亮永久保留） ----------
+        _badgeDefs: [
+            { id: 'first_step', icon: '🌱', name: '启程', desc: '完成第一个修炼步骤', check: s => s.steps >= 1 },
+            { id: 'first_unit', icon: '📗', name: '初次出关', desc: '通关第一个修炼单元', check: s => s.units >= 1 },
+            { id: 'first_quiz', icon: '🎯', name: '主动提取', desc: '首次通关一个单元的「练」', check: s => s.quizzesPassed >= 1 },
+            { id: 'quiz_100', icon: '💯', name: '百题锤炼', desc: '累计答对 100 道题', check: s => s.correct >= 100 },
+            { id: 'review_20', icon: '🔁', name: '温故知新', desc: '累计回炉 20 次', check: s => s.reviewed >= 20 },
+            { id: 'streak_7', icon: '🔥', name: '七日不辍', desc: '连续修炼 7 天', check: s => s.streak >= 7 },
+            { id: 'streak_30', icon: '🌕', name: '月满', desc: '连续修炼 30 天', check: s => s.streak >= 30 },
+            { id: 'streak_100', icon: '💎', name: '百日筑基', desc: '连续修炼 100 天', check: s => s.streak >= 100 },
+            { id: 'xp_500', icon: '⚒️', name: '小有所成', desc: '修为达到 500', check: s => s.xp >= 500 },
+            { id: 'xp_1500', icon: '🏔️', name: '千锤百炼', desc: '修为达到 1500', check: s => s.xp >= 1500 },
+            { id: 'skill_1', icon: '🏆', name: '一艺精通', desc: '认定精通一项技能', check: s => s.mastered >= 1 },
+            { id: 'skill_3', icon: '🎖️', name: '三艺在身', desc: '认定精通三项技能', check: s => s.mastered >= 3 },
+            { id: 'skill_5', icon: '👑', name: '五艺圆满', desc: '认定精通全部五项技能', check: s => s.mastered >= 5 }
+        ],
+
+        _collectStats() {
+            const skills = window.CiKeSkillsData || [];
+            let units = 0, mastered = 0, steps = 0;
+            skills.forEach(s => {
+                const prog = this.getSkillProgress(s.id);
+                units += (prog.completedUnits || []).length;
+                Object.keys(prog.units || {}).forEach(n => {
+                    const u = prog.units[n];
+                    ['know', 'observe', 'practice', 'reflect'].forEach(k => { if (u[k]) steps++; });
+                });
+                if (this.isSkillMastered(s.id)) mastered++;
+            });
+            const qs = get('quiz_stats', { attempts: 0, correct: 0 });
+            const rs = get('review_stats', { total: 0, mastered: 0 });
+            let quizzesPassed = 0;
+            skills.forEach(s => {
+                const prog = this.getSkillProgress(s.id);
+                Object.keys(prog.units || {}).forEach(n => {
+                    if (prog.units[n].quiz && prog.units[n].quiz.passed) quizzesPassed++;
+                });
+            });
+            return {
+                units, mastered, steps, quizzesPassed,
+                correct: qs.correct, attempts: qs.attempts,
+                reviewed: rs.total, masteredReviews: rs.mastered,
+                xp: this.getXp(), streak: this.getStreak().days
+            };
+        },
+
+        getBadges() {
+            const st = this._collectStats();
+            const unlockedAt = get('badges', {});
+            return this._badgeDefs.map(b => ({
+                id: b.id, icon: b.icon, name: b.name, desc: b.desc,
+                unlocked: !!b.check(st),
+                unlockedAt: unlockedAt[b.id] || null
+            }));
+        },
+
+        /** 记录新点亮的印记，返回本次新增（用于即时庆祝） */
+        syncBadges() {
+            const list = this.getBadges();
+            const stored = get('badges', {});
+            const newly = [];
+            list.forEach(b => {
+                if (b.unlocked && !stored[b.id]) {
+                    stored[b.id] = Date.now();
+                    newly.push(b);
+                }
+            });
+            if (newly.length) set('badges', stored);
+            return newly;
+        },
+
+        // ---------- 🛡️ 补签卡（免费、每周自动补充，不售卖） ----------
+        _isoWeekKey(d) {
+            const t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+            const day = t.getUTCDay() || 7;
+            t.setUTCDate(t.getUTCDate() + 4 - day);
+            const yearStart = new Date(Date.UTC(t.getUTCFullYear(), 0, 1));
+            const wk = Math.ceil(((t - yearStart) / 86400000 + 1) / 7);
+            return t.getUTCFullYear() + '-W' + wk;
+        },
+
+        getStreakFreeze() {
+            const st = get('streak_freeze', { count: 1, lastWeek: '' });
+            const wk = this._isoWeekKey(new Date());
+            if (st.lastWeek !== wk) {
+                st.count = Math.min((st.count || 0) + 1, 3);
+                st.lastWeek = wk;
+                set('streak_freeze', st);
+            }
+            return st.count || 0;
+        },
+
+        getStreakPatches() { return get('streak_patches', []); },
+
+        /** 用一张补签卡补齐最近一个断签日；返回被补的日期或 null */
+        useStreakFreeze() {
+            if (this.getStreakFreeze() <= 0) return null;
+            const active = this.getActivityDates();
+            const patches = this.getStreakPatches();
+            let target = null;
+            let cursor = new Date(Date.now() - 86400000);
+            for (let i = 0; i < 60; i++) {
+                const key = cursor.toDateString();
+                if (!active.has(key) && !patches.includes(key)) { target = key; break; }
+                cursor = new Date(cursor.getTime() - 86400000);
+            }
+            if (!target) return null;
+            patches.push(target);
+            set('streak_patches', patches);
+            const st = get('streak_freeze', { count: 0, lastWeek: '' });
+            st.count = Math.max(0, (st.count || 0) - 1);
+            set('streak_freeze', st);
+            return target;
+        },
+
+        // ---------- 📅 修炼活动记录与日历 ----------
+        /** 记录一次"有实质修炼行为"的事件（用于连胜与热力图） */
+        logTrainingActivity() {
+            const log = get('training_log', []);
+            log.push(Date.now());
+            set('training_log', log.slice(-600));
+        },
+
+        /** 修炼日历（最近 N 天，用于热力图） */
+        getTrainingCalendar(days) {
+            const n = days || 112;
+            const active = this.getActivityDates();
+            const out = [];
+            const today = new Date();
+            for (let i = n - 1; i >= 0; i--) {
+                const d = new Date(today.getTime() - i * 86400000);
+                out.push({ key: d.toDateString(), date: d, active: active.has(d.toDateString()) });
+            }
+            return out;
+        },
+
+        /** 记录已读概念卡（计入今日修炼进度） */
+        markCardsRead(n) {
+            this.bumpDailyStat('card', n || 1);
         },
 
         // ==========================================
@@ -999,6 +1450,18 @@ window.CiKeStore = (function() {
         // ==========================================
         // 💾 数据主权：全量导出与导入
         // ==========================================
+        /**
+         * 已知数据键清单：保证导出结构完整（即使某项尚未产生数据）。
+         * 新增存储键时请同步登记，以维持「数据主权完整」约定与未来版本兼容。
+         */
+        _knownKeys: [
+            'goals', 'records', 'focus_sessions', 'today_focus', 'plan_tasks',
+            'settings', 'checkins', 'verifications',
+            'skills_progress', 'quiz_stats', 'review_items', 'review_stats',
+            'daily_stats', 'daily_quests', 'badges', 'training_log',
+            'streak_freeze', 'streak_patches'
+        ],
+
         exportDataJSON() {
             const exportData = {
                 app: 'CiKe (此刻)',
@@ -1007,6 +1470,10 @@ window.CiKeStore = (function() {
                 data: {}
             };
 
+            // 先登记已知键（缺失的以 null 占位，保证结构稳定）
+            this._knownKeys.forEach(k => { exportData.data[k] = get(k, null); });
+
+            // 再兜底扫描：兼容未来新增但未登记的键
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
                 if (key && key.startsWith(PREFIX)) {
@@ -1054,17 +1521,28 @@ window.CiKeStore = (function() {
             // 🏛️ 五艺修炼进度与精通认定
             const skills = window.CiKeSkillsData || [];
             if (skills.length) {
+                const rank = this.getXpRank();
+                const maxXp = this.getMaxXp();
                 md += `\n## 🏛️ 五艺修炼进度\n\n`;
+                md += `> 修为：**${rank.xp} / ${maxXp.xp}**（${rank.name}段位） · 连胜 ${this.getStreak().days} 天\n\n`;
                 skills.forEach(sk => {
                     const prog = this.getSkillProgress(sk.id);
                     const done = (prog.completedUnits || []).length;
                     const level = this.calculateLevel(done, sk.units.length, this.isSkillMastered(sk.id));
-                    md += `### ${sk.icon} ${sk.title} · ${level} (${done}/${sk.units.length} 单元)\n`;
+                    md += `### ${sk.icon} ${sk.title} · ${level} (${done}/${sk.units.length} 单元 · 修为 ${this.getSkillXp(sk.id)})\n`;
                     md += `- 核心原理：${sk.corePrinciple}\n`;
                     (sk.units || []).forEach(u => {
                         const up = (prog.units && prog.units[u.unitNumber]) || {};
-                        const steps = ['know', 'observe', 'practice', 'reflect'].filter(k => up[k]).length;
-                        md += `  - 单元${u.unitNumber} ${u.title}：${steps}/4 步\n`;
+                        const content = this.getUnitContent(sk.id, u.unitNumber);
+                        const hasQuiz = !!(content && content.quiz && content.quiz.length);
+                        const base = ['know', 'observe', 'practice', 'reflect'].filter(k => up[k]).length;
+                        const steps = hasQuiz ? (base + (up.quiz && up.quiz.passed ? 1 : 0)) : base;
+                        const denom = hasQuiz ? 5 : 4;
+                        let line = `  - 单元${u.unitNumber} ${u.title}：${steps}/${denom} 步`;
+                        if (hasQuiz && up.quiz) {
+                            line += up.quiz.passed ? `（练 ✓ ${up.quiz.bestCorrect}/${up.quiz.total}）` : `（练 未过）`;
+                        }
+                        md += line + `\n`;
                         if (up.reflectionText) md += `    > ${up.reflectionText}\n`;
                     });
                     const v = this.getVerification(sk.id);
@@ -1073,6 +1551,25 @@ window.CiKeStore = (function() {
                     }
                     md += `\n`;
                 });
+            }
+
+            // 🔁 复习站 · 回炉
+            const rv = this.getReviewStats();
+            if (rv.pending > 0 || rv.reviewed > 0) {
+                md += `\n## 🔁 回炉复习\n\n`;
+                md += `- 待复习队列：**${rv.pending}** 项（其中 ${rv.due} 项今日到期）\n`;
+                md += `- 累计回炉：${rv.reviewed} 次 · 彻底掌握：${rv.mastered} 项\n\n`;
+            }
+
+            // 🏅 修炼印记
+            const badges = this.getBadges().filter(b => b.unlocked);
+            if (badges.length) {
+                md += `\n## 🏅 修炼印记 (${badges.length})\n\n`;
+                badges.forEach(b => {
+                    const at = b.unlockedAt ? `（${new Date(b.unlockedAt).toLocaleDateString('zh-CN')}）` : '';
+                    md += `- ${b.icon} **${b.name}**${at}：${b.desc}\n`;
+                });
+                md += `\n`;
             }
 
             return md;
@@ -1084,6 +1581,8 @@ window.CiKeStore = (function() {
                     throw new Error('无效的备份数据结构');
                 }
                 Object.keys(parsed.data).forEach(cleanKey => {
+                    // 导出中的 null 为占位空值，导入时跳过（避免覆盖为 null 破坏默认值）
+                    if (parsed.data[cleanKey] === null) return;
                     set(cleanKey, parsed.data[cleanKey]);
                 });
                 return true;

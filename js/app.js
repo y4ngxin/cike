@@ -70,6 +70,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.SkillsPage) router.register('skills', window.SkillsPage);
     if (window.SkillDetailPage) router.register('skill-detail', window.SkillDetailPage);
     if (window.UnitLearningPage) router.register('unit-learning', window.UnitLearningPage);
+    if (window.TodayTrainingPage) router.register('today-training', window.TodayTrainingPage);
+    if (window.ReviewPage) router.register('review', window.ReviewPage);
+    if (window.ArchivePage) router.register('archive', window.ArchivePage);
 
     // 📐 图 · 计划看板模块
     if (window.PlanPage) router.register('plan', window.PlanPage);

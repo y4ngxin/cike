@@ -17,6 +17,9 @@ window.CiKeRouter = (function() {
         // 详情与子页面（隐藏底部导航）
         'skill-detail':       { pageId: 'page-skill-detail',       hideNav: true,  renderer: null },
         'unit-learning':      { pageId: 'page-unit-learning',      hideNav: true,  renderer: null },
+        'today-training':     { pageId: 'page-today-training',     hideNav: true,  renderer: null },
+        'review':             { pageId: 'page-review',             hideNav: true,  renderer: null },
+        'archive':            { pageId: 'page-archive',            hideNav: true,  renderer: null },
         'morning-checkin':    { pageId: 'page-morning-checkin',    hideNav: true,  renderer: null },
         'evening-reflection': { pageId: 'page-evening-reflection', hideNav: true,  renderer: null },
         'new-record':         { pageId: 'page-new-record',         hideNav: true,  renderer: null },

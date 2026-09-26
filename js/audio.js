@@ -165,11 +165,56 @@ window.CiKeAudio = (function() {
         });
     }
 
+    /**
+     * 答题反馈音（零资源算法合成）
+     * @param {'correct'|'wrong'|'levelup'} kind
+     * 设计原则：答错不刺耳、不惩罚，只是轻轻提示"再想想"
+     */
+    function feedback(kind = 'correct') {
+        initContext();
+        if (!audioCtx) return;
+
+        const now = audioCtx.currentTime;
+        let notes, type, peak, dur;
+        if (kind === 'wrong') {
+            notes = [311.13, 261.63];      // 柔和下行双音（降三度），不刺耳
+            type = 'sine';
+            peak = 0.14;
+            dur = 0.5;
+        } else if (kind === 'levelup') {
+            notes = [523.25, 659.25, 783.99, 1046.5];
+            type = 'triangle';
+            peak = 0.2;
+            dur = 1.0;
+        } else {
+            notes = [783.99, 1046.5];      // 轻快上行双音
+            type = 'sine';
+            peak = 0.18;
+            dur = 0.42;
+        }
+
+        notes.forEach((freq, i) => {
+            const startAt = now + i * 0.09;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, startAt);
+            gain.gain.setValueAtTime(0.0001, startAt);
+            gain.gain.linearRampToValueAtTime(peak, startAt + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startAt + dur);
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start(startAt);
+            osc.stop(startAt + dur + 0.05);
+        });
+    }
+
     return {
         play,
         stop,
         setVolume,
         chime,
+        feedback,
         getCurrentType: () => currentType,
         isPlaying: () => isPlaying
     };
