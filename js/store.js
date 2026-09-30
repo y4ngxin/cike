@@ -9,7 +9,7 @@ window.CiKeStore = (function() {
 
     // 应用版本号（唯一权威来源）。settings 页、app.js 控制台、导出 JSON 都读这里；
     // sw.js 的 CACHE_NAME 是 Service Worker 环境读不到 window，仍需手动同步。
-    window.CIKE_VERSION = '1.3.3';
+    window.CIKE_VERSION = '1.3.4';
 
     // ========== 工具方法 ==========
 

@@ -157,7 +157,9 @@ module.exports = {
         A.ok('MD 单元行含步数口径', /\d+\/\d+ 步/.test(md));
 
         // ---------- 11. 版本号单源（B6）----------
-        A.eq('window.CIKE_VERSION 已定义且为 1.3.3', window.CIKE_VERSION, '1.3.3');
+        // 只校验"已定义 + 语义化版本格式"，不写死具体版本号——
+        // 否则每次发版都要改测试（v1.3.4 升版时正是这样暴露出来的）。
+        A.ok('window.CIKE_VERSION 已定义且为语义化版本', /^\d+\.\d+\.\d+$/.test(window.CIKE_VERSION));
         A.eq('导出 JSON 版本与 CIKE_VERSION 一致', parsed.version, window.CIKE_VERSION);
 
         return A.summary();

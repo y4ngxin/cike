@@ -122,3 +122,40 @@ npm test      # 运行 tests/ 下全部回归（数据层机制 + 页面交互�
 - `tests/pages.test.js`：冷启动、五步顺序门禁、答题即时重想、复习站即时练习、导航结构、原生弹窗零调用
 - CI（`.github/workflows/deploy.yml`）：`verify` 作业先跑 `node --check` + `npm test`，失败不部署
 
+---
+
+## 🔐 签名与发布安全（v1.3.4 起）
+
+> **密钥与口令永不入库。** 这是 v1.3.4 安全止血后确立的硬规则。
+
+历史事故（已修复）：旧签名密钥 `cike.keystore` 与明文口令 `cike123456` 曾随公开仓库发布，
+且 `deploy.yml` 用 `path: '.'` 整仓上传，导致密钥可在公网直接下载 —— 任何人可伪造该 App 的升级签名。
+处置：密钥轮换 + 改写 Git 历史清除 + 发布改白名单（详见 `NEXT_VERSION_PLAN.md` 第二节）。
+
+**当前密钥位置（仓库之外）**：
+
+```
+D:\project\zhaoxi\cike-signing\
+├── cike-release.jks           # 签名密钥（32 位随机口令）
+├── cike-signing.properties    # 口令与别名（勿复制回项目目录）
+├── uber-apk-signer.jar        # 签名工具
+├── sign-apk.ps1 / sign-apk.bat # 去口令版签名脚本
+└── cike-repo-BACKUP-*.bundle  # 历史改写前的整库备份
+```
+
+**签名用法**：
+
+```powershell
+# 方式一：直接调用（交互式输入 APK 路径）
+D:\project\zhaoxi\cike-signing\sign-apk.ps1
+# 方式二：指定 APK
+D:\project\zhaoxi\cike-signing\sign-apk.ps1 -ApkPath .\cike-unsigned.apk
+# 方式三：口令走环境变量（脚本不含任何明文）
+$env:CIKE_STORE_PASSWORD='<口令>'; D:\project\zhaoxi\cike-signing\sign-apk.ps1 -ApkPath x.apk
+```
+
+**发布产物**：CI 只发布 `index.html / install.html / manifest.json / sw.js / .nojekyll / css / icons / js`
+组成的白名单目录；文档、测试与任何未知文件都不进 Pages，产物中出现 `*.apk/*.jks/*.jar` 会直接阻止发布。
+
+> ⚠️ 若应用已上架应用商店：换密钥后旧包名可能被释放，**存在被第三方抢注的风险**，需尽快确认并处理。
+

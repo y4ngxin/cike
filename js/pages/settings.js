@@ -73,7 +73,7 @@ window.SettingsPage = {
 
                 <!-- 关于 -->
                 <div style="text-align: center; padding: 16px 0; color: var(--color-text-light); font-size: 12px; line-height: 1.6;">
-                    <strong>「此刻」CiKe v${window.CIKE_VERSION || '1.0.0'}</strong><br>
+                    <strong>「此刻」CiKe v${window.CIKE_VERSION || '1.3.4'}</strong><br>
                     看见自己 · 修炼自己 · 成为自己<br>
                     纯本地存储 · 零广告 · 零算法推荐
                 </div>
