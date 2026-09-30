@@ -46,13 +46,32 @@ jobs:
         uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v4
-      # ⚠️ 已知风险（P0 待修，见 IMPROVEMENT_PLAN.md 阶段 A）：
-      # path: '.' 会把仓库根目录整个发布到 Pages，敏感文件必须靠 .gitignore/不入库来兜底。
-      # 修复方向：改为显式白名单目录。
+      # v1.3.4（阶段 A 安全止血）：不再整目录发布。
+      # 旧写法 path: '.' 把仓库根目录全部上传，密钥/APK 一旦入库就会同步公开——
+      # 这正是本次 P0 的放大器。现改为**先组装白名单目录，再上传该目录**：
+      # 只有下面显式列出的公开 Web 资源会进入产物，文档与任何未知文件默认不发布。
+      - name: Assemble site (whitelist only)
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          cp index.html install.html manifest.json sw.js .nojekyll dist/
+          cp -r css icons js dist/
+          # 防御性兜底：即便有人误把敏感文件入库，也绝不随产物发布
+          rm -f dist/*.apk dist/*.aab dist/*.jks dist/*.keystore dist/*.jar
+          rm -f dist/sign-apk.ps1 dist/sign-apk.bat
+          echo "--- 待发布清单 ---"
+          find dist -type f | sort
+      - name: Guard against secrets in artifact
+        run: |
+          set -euo pipefail
+          if find dist -type f \( -name '*.apk' -o -name '*.aab' -o -name '*.jks' -o -name '*.keystore' -o -name '*.jar' \) | grep -q .; then
+            echo "::error::产物中发现密钥/包文件，已阻止发布"
+            exit 1
+          fi
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: 'dist'
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4

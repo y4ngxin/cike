@@ -10,3 +10,26 @@ Thumbs.db
 
 # 测试依赖（运行时零依赖；仅 npm test 需要）
 node_modules/
+
+# ==========================================================
+# 签名与发布产物 —— 永不入库（阶段 A 安全止血，v1.3.4）
+# ----------------------------------------------------------
+# 背景：旧密钥 cike.keystore 与明文口令曾随仓库公开（实测可下载），
+#       已通过改写历史清除并作废轮换。
+# 现状：密钥与口令保存在仓库之外 —— D:\project\zhaoxi\cike-signing\
+#       （cike-release.jks + cike-signing.properties + uber-apk-signer.jar）
+# 约定：以下任何一样都不允许再进入版本库；确需分发时走私有渠道。
+# ==========================================================
+*.jks
+*.keystore
+*.apk
+*.aab
+*.jar
+sign-apk.ps1
+sign-apk.bat
+release/
+
+# 本地环境与密钥文件
+.env
+*.local
+cike-signing.properties
